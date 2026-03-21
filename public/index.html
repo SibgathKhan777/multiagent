@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Software Factory — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a2e;
+      --bg-card-hover: #1e1e35;
+      --border: #2a2a3e;
+      --text-primary: #e4e4ef;
+      --text-secondary: #8888a0;
+      --text-muted: #5a5a72;
+      --accent-blue: #4f8cff;
+      --accent-purple: #a855f7;
+      --accent-green: #22c55e;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-cyan: #06b6d4;
+      --glow-blue: rgba(79, 140, 255, 0.15);
+      --glow-purple: rgba(168, 85, 247, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(79, 140, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79, 140, 255, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; position: relative; z-index: 1; }
+
+    .header { text-align: center; margin-bottom: 2.5rem; padding: 2rem 0; }
+    .header h1 {
+      font-size: 2.2rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    .header p { color: var(--text-secondary); font-size: 0.95rem; }
+    .provider-badge {
+      display: inline-block; padding: 0.3rem 0.8rem; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem;
+      background: var(--glow-blue); border: 1px solid rgba(79, 140, 255, 0.3); color: var(--accent-blue);
+    }
+
+    .input-section {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+    .input-row { display: flex; gap: 1rem; align-items: stretch; }
+    .input-row input {
+      flex: 1; background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.9rem 1.2rem; color: var(--text-primary);
+      font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.2s;
+    }
+    .input-row input:focus { border-color: var(--accent-blue); }
+    .input-row input::placeholder { color: var(--text-muted); }
+
+    .btn { border: none; border-radius: 10px; padding: 0.9rem 2rem; color: white; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; white-space: nowrap; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-launch { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); }
+    .btn-launch:hover { box-shadow: 0 4px 20px rgba(79, 140, 255, 0.3); }
+    .btn-output { background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan)); font-size: 0.85rem; padding: 0.6rem 1.2rem; border-radius: 8px; }
+    .btn-output:hover { box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3); }
+    .btn-download { background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue)); font-size: 0.8rem; padding: 0.5rem 1rem; border-radius: 8px; }
+
+    .pipeline-section { display: none; }
+    .pipeline-section.active { display: block; }
+
+    .status-banner {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+    }
+    .status-left { display: flex; align-items: center; gap: 1rem; }
+    .status-right { display: flex; align-items: center; gap: 1rem; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-amber); animation: pulse 1.5s ease-in-out infinite; }
+    .status-dot.completed { background: var(--accent-green); animation: none; }
+    .status-dot.failed { background: var(--accent-red); animation: none; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+    .status-text { font-weight: 600; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .status-meta { color: var(--text-secondary); font-size: 0.85rem; }
+
+    .stages-row { display: flex; gap: 0.5rem; margin-bottom: 2rem; overflow-x: auto; padding: 0.5rem 0; }
+    .stage-chip { flex-shrink: 0; padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); transition: all 0.3s; }
+    .stage-chip.active { background: var(--glow-blue); border-color: var(--accent-blue); color: var(--accent-blue); box-shadow: 0 0 12px rgba(79, 140, 255, 0.2); }
+    .stage-chip.done { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3); color: var(--accent-green); }
+    .stage-arrow { color: var(--text-muted); font-size: 0.8rem; display: flex; align-items: center; }
+
+    .modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .module-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; transition: border-color 0.3s, box-shadow 0.3s; }
+    .module-card:hover { border-color: rgba(79, 140, 255, 0.3); box-shadow: 0 2px 16px rgba(0,0,0,0.2); }
+    .module-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.8rem; }
+    .module-name { font-weight: 600; font-size: 0.95rem; }
+    .module-badge { padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+    .badge-pending { background: rgba(99, 99, 120, 0.2); color: var(--text-muted); }
+    .badge-building, .badge-queued { background: rgba(79, 140, 255, 0.15); color: var(--accent-blue); }
+    .badge-validating { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+    .badge-feedback { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+    .badge-completed { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+    .badge-failed { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+    .badge-prompting { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
+    .module-meta { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .module-meta-item { font-size: 0.8rem; color: var(--text-secondary); }
+    .module-meta-item span { font-weight: 600; }
+    .score-bar { height: 4px; background: var(--bg-secondary); border-radius: 2px; margin-top: 0.8rem; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+    .score-fill.high { background: linear-gradient(90deg, var(--accent-green), #4ade80); }
+    .score-fill.medium { background: linear-gradient(90deg, var(--accent-amber), #fbbf24); }
+    .score-fill.low { background: linear-gradient(90deg, var(--accent-red), #f87171); }
+
+    /* ─── Output Viewer (Tree + Code) ─── */
+    .output-section { display: none; margin-bottom: 2rem; }
+    .output-section.active { display: block; }
+    .output-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.8rem 1.2rem; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 12px 12px 0 0;
+      border-bottom: none;
+    }
+    .output-header-left { display: flex; align-items: center; gap: 0.8rem; }
+    .output-header h3 { font-size: 1rem; font-weight: 600; }
+    .output-file-count { font-size: 0.8rem; color: var(--text-secondary); }
+    .output-body {
+      display: flex; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 0 0 12px 12px; min-height: 500px; overflow: hidden;
+    }
+
+    /* File Tree Sidebar */
+    .file-tree {
+      width: 250px; min-width: 200px; border-right: 1px solid var(--border);
+      padding: 0.5rem 0; overflow-y: auto; flex-shrink: 0;
+      background: rgba(10, 10, 15, 0.5);
+    }
+    .file-tree::-webkit-scrollbar { width: 4px; }
+    .file-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .tree-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.25rem 0.6rem 0.25rem 0.8rem;
+      font-size: 0.8rem; cursor: pointer; color: var(--text-secondary);
+      transition: background 0.15s, color 0.15s;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      white-space: nowrap;
+    }
+    .tree-item:hover { background: rgba(79, 140, 255, 0.08); color: var(--text-primary); }
+    .tree-item.active { background: rgba(79, 140, 255, 0.15); color: var(--accent-blue); }
+    .tree-item.folder { color: var(--text-primary); font-weight: 500; }
+    .tree-item .chevron { font-size: 0.6rem; width: 1em; text-align: center; transition: transform 0.2s; }
+    .tree-item .chevron.open { transform: rotate(90deg); }
+    .tree-item .file-icon { font-size: 0.85rem; flex-shrink: 0; }
+    .tree-children { overflow: hidden; transition: max-height 0.3s; }
+    .tree-children.collapsed { max-height: 0 !important; }
+    .tree-indent { display: inline-block; width: 1rem; flex-shrink: 0; }
+
+    /* Code Panel */
+    .code-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .code-panel-header {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 1rem; border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem;
+      color: var(--text-secondary); background: rgba(10, 10, 15, 0.3);
+    }
+    .code-panel-header .breadcrumb { color: var(--text-muted); }
+    .code-panel-header .breadcrumb-active { color: var(--accent-blue); }
+    .code-viewer {
+      flex: 1; padding: 1rem; overflow: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem; line-height: 1.7; white-space: pre;
+      color: var(--text-primary); tab-size: 2;
+    }
+    .code-viewer::-webkit-scrollbar { width: 6px; height: 6px; }
+    .code-viewer::-webkit-scrollbar-track { background: transparent; }
+    .code-viewer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .line-numbers { color: var(--text-muted); user-select: none; margin-right: 1rem; text-align: right; display: inline-block; min-width: 2.5em; }
+    .code-line { display: block; }
+    .code-line:hover { background: rgba(255,255,255,0.02); }
+
+    /* Syntax colors */
+    .syn-keyword { color: #c678dd; }
+    .syn-string { color: #98c379; }
+    .syn-comment { color: #5c6370; font-style: italic; }
+    .syn-func { color: #61afef; }
+    .syn-number { color: #d19a66; }
+    .syn-const { color: #e5c07b; }
+
+    /* ─── Log Stream ─── */
+    .log-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .log-header { padding: 0.8rem 1.2rem; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+    .log-count { background: var(--bg-secondary); padding: 0.15rem 0.6rem; border-radius: 10px; font-size: 0.7rem; color: var(--text-secondary); }
+    .log-body { padding: 0.8rem; max-height: 280px; overflow-y: auto; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; line-height: 1.6; }
+    .log-body::-webkit-scrollbar { width: 6px; }
+    .log-body::-webkit-scrollbar-track { background: transparent; }
+    .log-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .log-line { padding: 0.1rem 0.4rem; border-radius: 3px; }
+    .log-line:hover { background: rgba(255,255,255,0.03); }
+    .log-time { color: var(--text-muted); }
+    .log-agent { color: var(--accent-cyan); font-weight: 500; }
+    .log-info { color: var(--accent-green); }
+    .log-warn { color: var(--accent-amber); }
+    .log-error { color: var(--accent-red); }
+
+    .history-section { margin-top: 2rem; }
+    .history-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-secondary); }
+    .history-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.8rem 1.2rem; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.2s;
+    }
+    .history-item:hover { border-color: var(--accent-blue); }
+    .history-idea { font-size: 0.9rem; font-weight: 500; flex: 1; }
+    .history-badge { margin-left: 1rem; }
+
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .input-row { flex-direction: column; }
+      .modules-grid { grid-template-columns: 1fr; }
+      .header h1 { font-size: 1.6rem; }
+      .status-banner { flex-direction: column; gap: 0.8rem; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚡ AI Software Factory</h1>
+      <p>Distributed Multi-Agent System for Autonomous Software Generation</p>
+      <div class="provider-badge" id="providerBadge">Loading...</div>
+    </div>
+
+    <div class="input-section">
+      <div class="input-row">
+        <input type="text" id="ideaInput" placeholder="Describe your software idea... (e.g., Build a scalable food delivery backend system)" />
+        <button class="btn btn-launch" id="launchBtn" onclick="startPipeline()">🚀 Launch</button>
+      </div>
+    </div>
+
+    <div class="pipeline-section" id="pipelineSection">
+      <div class="status-banner">
+        <div class="status-left">
+          <div class="status-dot" id="statusDot"></div>
+          <div>
+            <div class="status-text" id="statusText">Starting...</div>
+            <div class="status-meta" id="statusMeta"></div>
+          </div>
+        </div>
+        <div class="status-right">
+          <div class="status-meta" id="taskIdDisplay"></div>
+          <button class="btn btn-output" id="viewOutputBtn" onclick="toggleOutput()" style="display:none">📦 View Generated Code</button>
+        </div>
+      </div>
+
+      <!-- Output Viewer -->
+      <div class="output-section" id="outputSection">
+        <div class="output-header">
+          <div class="output-header-left">
+            <h3>📂 Generated Project</h3>
+            <span class="output-file-count" id="outputFileCount"></span>
+          </div>
+          <button class="btn btn-download" onclick="downloadOutput()">⬇ Download All</button>
+        </div>
+        <div class="output-body">
+          <div class="file-tree" id="fileTree"></div>
+          <div class="code-panel">
+            <div class="code-panel-header" id="codePanelHeader">
+              <span class="breadcrumb">Select a file from the tree →</span>
+            </div>
+            <div class="code-viewer" id="codeViewer">Click a file in the project tree to view its code...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stages-row" id="stagesRow"></div>
+      <div class="modules-grid" id="modulesGrid"></div>
+
+      <div class="log-section">
+        <div class="log-header">
+          <span>📋 Live Agent Logs</span>
+          <span class="log-count" id="logCount">0 entries</span>
+        </div>
+        <div class="log-body" id="logBody"></div>
+      </div>
+    </div>
+
+    <div class="history-section" id="historySection">
+      <div class="history-title">📁 Previous Pipelines</div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <script>
+    const STAGES = ['created', 'decomposing', 'prompting', 'building', 'validating', 'feedback-loop', 'integrating', 'completed'];
+    const STAGE_LABELS = {
+      'created': 'Created', 'decomposing': 'Decomposing', 'prompting': 'Prompting',
+      'building': 'Building', 'validating': 'Validating', 'feedback-loop': 'Feedback',
+      'integrating': 'Integrating', 'completed': 'Completed'
+    };
+
+    let currentTaskId = null;
+    let pollInterval = null;
+    let logs = [];
+    let eventSource = null;
+    let outputData = null;
+    let currentFileIdx = 0;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadHistory();
+      loadProvider();
+      document.getElementById('ideaInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') startPipeline();
+      });
+    });
+
+    async function loadProvider() {
+      try {
+        const r = await fetch('/api/health');
+        const d = await r.json();
+        document.getElementById('providerBadge').textContent = d.data?.provider || 'Unknown Provider';
+      } catch { document.getElementById('providerBadge').textContent = 'Disconnected'; }
+    }
+
+    async function loadHistory() {
+      try {
+        const r = await fetch('/api/pipelines');
+        const d = await r.json();
+        const list = document.getElementById('historyList');
+        list.innerHTML = '';
+        if (d.data && d.data.length > 0) {
+          d.data.slice(0, 10).forEach(p => {
+            const el = document.createElement('div');
+            el.className = 'history-item';
+            el.onclick = () => viewPipeline(p.taskId);
+            el.innerHTML = `
+              <div class="history-idea">${escHtml(p.idea)}</div>
+              <span class="module-badge badge-${p.status} history-badge">${p.status}</span>
+            `;
+            list.appendChild(el);
+          });
+        } else {
+          list.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem;">No pipelines yet. Enter an idea above!</div>';
+        }
+      } catch (e) { console.error('Failed to load history', e); }
+    }
+
+    async function startPipeline() {
+      const idea = document.getElementById('ideaInput').value.trim();
+      if (!idea || idea.length < 5) return alert('Please enter an idea with at least 5 characters.');
+      const btn = document.getElementById('launchBtn');
+      btn.disabled = true; btn.textContent = '⏳ Starting...';
+      try {
+        const r = await fetch('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idea }) });
+        const d = await r.json();
+        if (d.success) {
+          currentTaskId = d.data.taskId;
+          logs = []; outputData = null;
+          document.getElementById('outputSection').classList.remove('active');
+          document.getElementById('viewOutputBtn').style.display = 'none';
+          showPipeline();
+          connectSSE(currentTaskId);
+          startPolling(currentTaskId);
+        } else { alert('Error: ' + d.error); }
+      } catch (e) { alert('Failed to start pipeline: ' + e.message); }
+      finally { btn.disabled = false; btn.textContent = '🚀 Launch'; }
+    }
+
+    function viewPipeline(taskId) {
+      currentTaskId = taskId;
+      logs = []; outputData = null;
+      document.getElementById('outputSection').classList.remove('active');
+      document.getElementById('viewOutputBtn').style.display = 'none';
+      document.getElementById('logBody').innerHTML = '';
+      document.getElementById('logCount').textContent = '0 entries';
+      showPipeline();
+      connectSSE(taskId);
+      startPolling(taskId);
+    }
+
+    function showPipeline() {
+      document.getElementById('pipelineSection').classList.add('active');
+      document.getElementById('pipelineSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function connectSSE(taskId) {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource(`/api/pipeline/${taskId}/stream`);
+      eventSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'log') addLog(data);
+          if (data.type === 'status') updateFromStatus(data);
+        } catch {}
+      };
+    }
+
+    function startPolling(taskId) {
+      if (pollInterval) clearInterval(pollInterval);
+      fetchStatus(taskId);
+      pollInterval = setInterval(() => fetchStatus(taskId), 2000);
+    }
+
+    async function fetchStatus(taskId) {
+      try {
+        const r = await fetch(`/api/pipeline/${taskId}`);
+        const d = await r.json();
+        if (d.success) updateUI(d.data);
+        if (['completed', 'failed'].includes(d.data?.status)) {
+          clearInterval(pollInterval);
+          loadHistory();
+          if (d.data?.status === 'completed') {
+            document.getElementById('viewOutputBtn').style.display = 'inline-block';
+            loadOutput(taskId);
+          }
+        }
+      } catch {}
+    }
+
+    async function loadOutput(taskId) {
+      try {
+        const r = await fetch(`/api/pipeline/${taskId}/output`);
+        const d = await r.json();
+        if (d.success && d.data) {
+          outputData = d.data;
+        }
+      } catch (e) { console.error('Failed to load output', e); }
+    }
+
+    function toggleOutput() {
+      const section = document.getElementById('outputSection');
+      if (section.classList.contains('active')) {
+        section.classList.remove('active');
+        document.getElementById('viewOutputBtn').textContent = '📦 View Generated Code';
+        return;
+      }
+
+      if (!outputData || !outputData.files) {
+        loadOutput(currentTaskId).then(() => {
+          if (outputData) renderOutput();
+        });
+        return;
+      }
+      renderOutput();
+    }
+
+    function renderOutput() {
+      const section = document.getElementById('outputSection');
+      section.classList.add('active');
+      document.getElementById('viewOutputBtn').textContent = '✕ Hide Code';
+
+      const files = outputData.files || [];
+      document.getElementById('outputFileCount').textContent = `${files.length} files`;
+
+      // Build tree structure from file paths
+      const tree = buildFileTree(files);
+      const treeEl = document.getElementById('fileTree');
+      treeEl.innerHTML = renderTreeNode(tree, 0);
+
+      // Show first file
+      if (files.length > 0) selectFile(0);
+
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function buildFileTree(files) {
+      const root = { name: 'project', children: {}, isDir: true };
+      files.forEach((file, idx) => {
+        const parts = file.path.replace(/^\//, '').split('/');
+        let node = root;
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (i === parts.length - 1) {
+            // File
+            node.children[part] = { name: part, fileIdx: idx, isDir: false };
+          } else {
+            // Directory
+            if (!node.children[part]) {
+              node.children[part] = { name: part, children: {}, isDir: true };
+            }
+            node = node.children[part];
+          }
+        }
+      });
+      return root;
+    }
+
+    function renderTreeNode(node, depth) {
+      const items = Object.values(node.children || {});
+      // Sort: directories first, then files
+      items.sort((a, b) => {
+        if (a.isDir && !b.isDir) return -1;
+        if (!a.isDir && b.isDir) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      return items.map(item => {
+        const indent = '<span class="tree-indent"></span>'.repeat(depth);
+        if (item.isDir) {
+          const childCount = Object.keys(item.children).length;
+          const childHtml = renderTreeNode(item, depth + 1);
+          return `<div class="tree-item folder" onclick="toggleFolder(this)">
+            ${indent}<span class="chevron open">▶</span>
+            <span class="file-icon">📁</span>${escHtml(item.name)}
+          </div>
+          <div class="tree-children" style="max-height:${childCount * 50}px">${childHtml}</div>`;
+        } else {
+          const icon = getFileIcon(item.name);
+          return `<div class="tree-item" onclick="selectFile(${item.fileIdx})" data-idx="${item.fileIdx}">
+            ${indent}<span class="tree-indent"></span>
+            <span class="file-icon">${icon}</span>${escHtml(item.name)}
+          </div>`;
+        }
+      }).join('');
+    }
+
+    function toggleFolder(el) {
+      const children = el.nextElementSibling;
+      const chevron = el.querySelector('.chevron');
+      if (children && children.classList.contains('tree-children')) {
+        children.classList.toggle('collapsed');
+        chevron.classList.toggle('open');
+      }
+    }
+
+    function selectFile(idx) {
+      currentFileIdx = idx;
+      const files = outputData.files;
+      if (!files || !files[idx]) return;
+
+      // Update tree active state
+      document.querySelectorAll('.tree-item').forEach(t => {
+        t.classList.toggle('active', t.dataset.idx == idx);
+      });
+
+      // Update breadcrumb
+      const headerEl = document.getElementById('codePanelHeader');
+      const parts = files[idx].path.replace(/^\//, '').split('/');
+      const breadcrumb = parts.map((p, i) => {
+        if (i === parts.length - 1) return `<span class="breadcrumb-active">${escHtml(p)}</span>`;
+        return `<span class="breadcrumb">${escHtml(p)}</span>`;
+      }).join('<span class="breadcrumb"> / </span>');
+      headerEl.innerHTML = breadcrumb;
+
+      // Render code
+      const viewer = document.getElementById('codeViewer');
+      const code = files[idx].content || '// Empty file';
+      const lines = code.split('\n');
+
+      viewer.innerHTML = lines.map((line, i) => {
+        const num = `<span class="line-numbers">${i + 1}</span>`;
+        return `<span class="code-line">${num}${colorize(line)}</span>`;
+      }).join('');
+
+      viewer.scrollTop = 0;
+    }
+
+    function colorize(raw) {
+      const tokens = [];
+      let i = 0;
+      while (i < raw.length) {
+        if (raw[i] === '/' && raw[i+1] === '/') {
+          tokens.push({ type: 'comment', text: raw.slice(i) });
+          i = raw.length;
+        } else if (raw[i] === '/' && raw[i+1] === '*') {
+          const end = raw.indexOf('*/', i + 2);
+          const slice = end >= 0 ? raw.slice(i, end + 2) : raw.slice(i);
+          tokens.push({ type: 'comment', text: slice });
+          i += slice.length;
+        } else if (raw[i] === "'" || raw[i] === '"' || raw[i] === '`') {
+          const q = raw[i];
+          let j = i + 1;
+          while (j < raw.length && raw[j] !== q) { if (raw[j] === '\\') j++; j++; }
+          tokens.push({ type: 'string', text: raw.slice(i, j + 1) });
+          i = j + 1;
+        } else {
+          let j = i;
+          while (j < raw.length && raw[j] !== '/' && raw[j] !== "'" && raw[j] !== '"' && raw[j] !== '`') j++;
+          if (j === i) { tokens.push({ type: 'code', text: raw[i] }); i++; }
+          else { tokens.push({ type: 'code', text: raw.slice(i, j) }); i = j; }
+        }
+      }
+      return tokens.map(t => {
+        const safe = escHtml(t.text);
+        if (t.type === 'comment') return `<span class="syn-comment">${safe}</span>`;
+        if (t.type === 'string') return `<span class="syn-string">${safe}</span>`;
+        return safe
+          .replace(/\b(const|let|var|function|async|await|return|if|else|try|catch|throw|new|require|module|exports|class|extends|import|from|for|while|of|in|switch|case|break|default|true|false|null|undefined)\b/g, '<span class="syn-keyword">$1</span>')
+          .replace(/\b(\d+\.?\d*)\b/g, '<span class="syn-number">$1</span>');
+      }).join('');
+    }
+
+    function getFileIcon(name) {
+      if (name.endsWith('.js')) return '<span style="color:#f7df1e">JS</span>';
+      if (name.endsWith('.json')) return '<span style="color:#6d9e37">{ }</span>';
+      if (name.includes('.env')) return '🔒';
+      if (name.endsWith('.md')) return '📝';
+      return '📄';
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+    }
+
+    async function downloadOutput() {
+      if (!currentTaskId) return;
+      try {
+        const res = await fetch(`/api/pipeline/${currentTaskId}/download`);
+        if (!res.ok) throw new Error('Download failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `project-${currentTaskId.substring(0, 8)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) { console.error('Download failed:', e); }
+    }
+
+    function updateUI(data) {
+      const dot = document.getElementById('statusDot');
+      dot.className = 'status-dot' + (data.status === 'completed' ? ' completed' : data.status === 'failed' ? ' failed' : '');
+      document.getElementById('statusText').textContent = data.status;
+      document.getElementById('statusMeta').textContent =
+        `${data.metadata?.completedModules || 0}/${data.metadata?.totalModules || 0} modules · ${data.metadata?.totalIterations || 0} feedback iterations`;
+      document.getElementById('taskIdDisplay').textContent = data.taskId?.substring(0, 8) + '...';
+
+      const stagesRow = document.getElementById('stagesRow');
+      const currentIdx = STAGES.indexOf(data.status);
+      stagesRow.innerHTML = STAGES.map((s, i) => {
+        const cls = i < currentIdx ? 'done' : i === currentIdx ? 'active' : '';
+        return `<div class="stage-chip ${cls}">${STAGE_LABELS[s]}</div>` + (i < STAGES.length - 1 ? '<div class="stage-arrow">→</div>' : '');
+      }).join('');
+
+      const grid = document.getElementById('modulesGrid');
+      if (data.modules && data.modules.length > 0) {
+        grid.innerHTML = data.modules.map(m => {
+          const scoreClass = m.qualityScore >= 90 ? 'high' : m.qualityScore >= 70 ? 'medium' : 'low';
+          return `
+            <div class="module-card">
+              <div class="module-header">
+                <div class="module-name">${escHtml(m.name)}</div>
+                <span class="module-badge badge-${m.status}">${m.status}</span>
+              </div>
+              <div class="module-meta">
+                <div class="module-meta-item">Type: <span>${m.type}</span></div>
+                <div class="module-meta-item">Model: <span>${m.assignedModel}</span></div>
+                <div class="module-meta-item">Score: <span>${m.qualityScore || '—'}</span></div>
+                <div class="module-meta-item">Iteration: <span>${m.iteration}</span></div>
+              </div>
+              <div class="score-bar"><div class="score-fill ${scoreClass}" style="width:${m.qualityScore || 0}%"></div></div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Show output button when completed
+      if (data.status === 'completed') {
+        document.getElementById('viewOutputBtn').style.display = 'inline-block';
+      }
+    }
+
+    function addLog(data) {
+      logs.push(data);
+      const body = document.getElementById('logBody');
+      const levelClass = data.level === 'error' ? 'log-error' : data.level === 'warn' ? 'log-warn' : 'log-info';
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `<span class="log-time">${data.timestamp || new Date().toLocaleTimeString()}</span> <span class="${levelClass}">${data.level || 'info'}</span> <span class="log-agent">[${data.agent || ''}]</span> ${escHtml(data.message || '')}`;
+      body.appendChild(line);
+      body.scrollTop = body.scrollHeight;
+      document.getElementById('logCount').textContent = `${logs.length} entries`;
+    }
+
+    function updateFromStatus(data) {
+      if (data.pipeline) updateUI(data.pipeline);
+    }
+  </script>
+</body>
+</html>
