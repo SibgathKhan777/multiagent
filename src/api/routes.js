@@ -3,6 +3,7 @@ const router = express.Router();
 const archiver = require('archiver');
 const controller = require('../core/controller');
 const modelsConfig = require('../../config/models');
+const progressEmitter = require('../realtime/progressEmitter');
 const logger = require('../utils/logger').forAgent('API');
 
 // SSE clients
@@ -155,6 +156,41 @@ router.get('/pipelines', async (req, res) => {
     logger.error('Failed to list pipelines', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+/**
+ * POST /api/progress
+ * Receives stage updates from the Python AI service and fans them out via Socket.IO.
+ * Body: { task_id, stage, data }
+ *
+ * Stage → Socket.IO event mapping:
+ *   started          → pipeline:started
+ *   architect_start, architect_done, coder_start, coder_done,
+ *   reviewer_done, tester_done  → pipeline:stage
+ *   retry            → pipeline:retry
+ *   integrator_done  → pipeline:completed
+ */
+const STAGE_EVENTS = {
+  started:         'pipeline:started',
+  architect_start: 'pipeline:stage',
+  architect_done:  'pipeline:stage',
+  coder_start:     'pipeline:stage',
+  coder_done:      'pipeline:stage',
+  reviewer_done:   'pipeline:stage',
+  retry:           'pipeline:retry',
+  tester_start:    'pipeline:stage',
+  tester_done:     'pipeline:stage',
+  integrator_done: 'pipeline:completed',
+};
+
+router.post('/progress', (req, res) => {
+  const { task_id, stage, data = {} } = req.body;
+  if (!task_id || !stage) {
+    return res.status(400).json({ error: 'task_id and stage are required' });
+  }
+  const event = STAGE_EVENTS[stage] || 'pipeline:stage';
+  progressEmitter.emit(task_id, event, { stage, ...data });
+  res.json({ ok: true });
 });
 
 /**

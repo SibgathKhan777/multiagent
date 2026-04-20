@@ -14,7 +14,7 @@ module.exports = {
 
   queue: {
     name: 'worker-tasks',
-    concurrency: 3,
+    concurrency: parseInt(process.env.QUEUE_CONCURRENCY, 10) || 3,
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 },

@@ -205,6 +205,7 @@ async function processModule(taskId, mod, pipeline, iteration, completedOutputs)
         prompt: mod.prompt,
         model: mod.assignedModel,
         moduleContext: {
+          taskId,
           moduleId: mod.moduleId,
           name: mod.name,
           type: mod.type,

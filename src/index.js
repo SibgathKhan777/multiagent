@@ -1,12 +1,15 @@
 require('dotenv').config();
 
+const http = require('http');
 const express = require('express');
+const { Server: SocketIOServer } = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
 const config = require('../config/default');
 const { initQueue, closeQueue } = require('./queue/queue');
 const memory = require('./memory/memory');
 const routes = require('./api/routes');
+const progressEmitter = require('./realtime/progressEmitter');
 const logger = require('./utils/logger').forAgent('App');
 
 const app = express();
@@ -102,7 +105,29 @@ async function start() {
     const providerName = modelsConfig.displayNames[modelsConfig.provider] || modelsConfig.provider;
     logger.info(`AI Provider: ${providerName}`);
 
-    const server = app.listen(config.port, () => {
+    // ── Socket.IO ────────────────────────────────────────────────
+    const httpServer = http.createServer(app);
+    const io = new SocketIOServer(httpServer, {
+      cors: { origin: '*', methods: ['GET', 'POST'] },
+    });
+
+    progressEmitter.init(io);
+
+    io.on('connection', (socket) => {
+      logger.info(`Socket connected: ${socket.id}`);
+
+      // Client joins a room identified by the taskId it wants to watch.
+      socket.on('watch', (taskId) => {
+        socket.join(taskId);
+        logger.info(`Socket ${socket.id} watching task ${taskId}`);
+      });
+
+      socket.on('disconnect', () => {
+        logger.info(`Socket disconnected: ${socket.id}`);
+      });
+    });
+
+    const server = httpServer.listen(config.port, () => {
       logger.info(`🚀 AI Software Factory running on http://localhost:${config.port}`);
       logger.info(`📊 Dashboard: http://localhost:${config.port}`);
       logger.info('Ready to process ideas!');
@@ -110,6 +135,7 @@ async function start() {
 
     const shutdown = async (signal) => {
       logger.info(`${signal} received. Shutting down gracefully...`);
+      io.close();
       server.close();
       await closeQueue();
       await mongoose.connection.close();

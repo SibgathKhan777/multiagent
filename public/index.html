@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Software Factory — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script>
   <style>
     :root {
       --bg-primary: #0a0a0f;
@@ -233,6 +234,57 @@
     .history-idea { font-size: 0.9rem; font-weight: 500; flex: 1; }
     .history-badge { margin-left: 1rem; }
 
+    .ai-agents-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .ai-agents-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+    .ai-pulse {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      animation: pulse 1.5s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
+    }
+    .ai-stage-list { display: flex; flex-direction: column; gap: 0.4rem; }
+    .ai-stage-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.83rem; color: var(--text-muted);
+      padding: 0.35rem 0.5rem; border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .ai-stage-row.active {
+      background: rgba(168, 85, 247, 0.1);
+      color: var(--text-primary);
+    }
+    .ai-stage-row.done { color: var(--accent-green); }
+    .ai-stage-icon { width: 1.2rem; text-align: center; font-size: 0.85rem; }
+    .ai-stage-name { flex: 1; }
+    .ai-stage-preview { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .ai-score-badge {
+      background: var(--accent-green); color: #000;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.15rem 0.45rem; border-radius: 20px;
+    }
+    .ai-score-badge.low { background: var(--accent-amber); }
+
     @media (max-width: 768px) {
       .container { padding: 1rem; }
       .input-row { flex-direction: column; }
@@ -293,6 +345,22 @@
       </div>
 
       <div class="stages-row" id="stagesRow"></div>
+
+      <!-- Python AI Agents real-time panel -->
+      <div class="ai-agents-panel" id="aiAgentsPanel" style="display:none">
+        <div class="ai-agents-header">
+          <div class="ai-pulse" id="aiPulse"></div>
+          Python AI Agents — Live Pipeline
+        </div>
+        <div class="ai-stage-list" id="aiStageList">
+          <div class="ai-stage-row" id="ai-architect"><span class="ai-stage-icon">🏗</span><span class="ai-stage-name">Architect</span><span class="ai-stage-preview" id="ai-architect-preview"></span></div>
+          <div class="ai-stage-row" id="ai-coder"><span class="ai-stage-icon">💻</span><span class="ai-stage-name">Coder</span><span class="ai-stage-preview" id="ai-coder-preview"></span></div>
+          <div class="ai-stage-row" id="ai-reviewer"><span class="ai-stage-icon">🔍</span><span class="ai-stage-name">Reviewer</span><span class="ai-stage-preview" id="ai-reviewer-preview"></span></div>
+          <div class="ai-stage-row" id="ai-tester"><span class="ai-stage-icon">🧪</span><span class="ai-stage-name">Tester</span><span class="ai-stage-preview" id="ai-tester-preview"></span></div>
+          <div class="ai-stage-row" id="ai-integrator"><span class="ai-stage-icon">📦</span><span class="ai-stage-name">Integrator</span><span class="ai-stage-preview" id="ai-integrator-preview"></span></div>
+        </div>
+      </div>
+
       <div class="modules-grid" id="modulesGrid"></div>
 
       <div class="log-section">
@@ -324,6 +392,77 @@
     let eventSource = null;
     let outputData = null;
     let currentFileIdx = 0;
+
+    // ── Socket.IO ──────────────────────────────────────────────────────────────
+    const socket = io();
+
+    const AI_STAGE_MAP = {
+      architect_start: { row: 'ai-architect', preview: 'ai-architect-preview', state: 'active' },
+      architect_done:  { row: 'ai-architect', preview: 'ai-architect-preview', state: 'done' },
+      coder_start:     { row: 'ai-coder',     preview: 'ai-coder-preview',     state: 'active' },
+      coder_done:      { row: 'ai-coder',     preview: 'ai-coder-preview',     state: 'done' },
+      reviewer_start:  { row: 'ai-reviewer',  preview: 'ai-reviewer-preview',  state: 'active' },
+      reviewer_done:   { row: 'ai-reviewer',  preview: 'ai-reviewer-preview',  state: 'done' },
+      tester_start:    { row: 'ai-tester',    preview: 'ai-tester-preview',    state: 'active' },
+      tester_done:     { row: 'ai-tester',    preview: 'ai-tester-preview',    state: 'done' },
+      integrator_start:{ row: 'ai-integrator',preview: 'ai-integrator-preview',state: 'active' },
+      integrator_done: { row: 'ai-integrator',preview: 'ai-integrator-preview',state: 'done' },
+    };
+
+    function showAiPanel() {
+      const panel = document.getElementById('aiAgentsPanel');
+      panel.style.display = 'block';
+      // reset all rows
+      document.querySelectorAll('.ai-stage-row').forEach(r => r.className = 'ai-stage-row');
+      document.querySelectorAll('.ai-stage-preview').forEach(p => p.textContent = '');
+    }
+
+    function applyAiStage(stage, data) {
+      const cfg = AI_STAGE_MAP[stage];
+      if (!cfg) return;
+      const row = document.getElementById(cfg.row);
+      if (!row) return;
+      row.className = 'ai-stage-row ' + cfg.state;
+      const previewEl = document.getElementById(cfg.preview);
+      if (previewEl) {
+        const text = data.preview || data.message || '';
+        previewEl.textContent = text ? text.substring(0, 80) : '';
+      }
+      // Show score badge on reviewer_done
+      if (stage === 'reviewer_done' && data.score != null) {
+        const badge = document.createElement('span');
+        badge.className = 'ai-score-badge' + (data.score < 70 ? ' low' : '');
+        badge.textContent = data.score + '/100';
+        row.appendChild(badge);
+      }
+    }
+
+    socket.on('pipeline:started', ({ taskId, data }) => {
+      if (taskId !== currentTaskId) return;
+      showAiPanel();
+      addLog({ level: 'info', agent: 'Python', message: data.message || 'Pipeline started', timestamp: new Date().toLocaleTimeString() });
+    });
+
+    socket.on('pipeline:stage', ({ taskId, stage, data }) => {
+      if (taskId !== currentTaskId) return;
+      applyAiStage(stage, data || {});
+      addLog({ level: 'info', agent: 'Python', message: `[${stage}] ${(data && data.message) || ''}`, timestamp: new Date().toLocaleTimeString() });
+    });
+
+    socket.on('pipeline:retry', ({ taskId, data }) => {
+      if (taskId !== currentTaskId) return;
+      // reset coder row for retry
+      const row = document.getElementById('ai-coder');
+      if (row) row.className = 'ai-stage-row';
+      addLog({ level: 'warn', agent: 'Python', message: (data && data.message) || 'Retrying code generation…', timestamp: new Date().toLocaleTimeString() });
+    });
+
+    socket.on('pipeline:completed', ({ taskId, data }) => {
+      if (taskId !== currentTaskId) return;
+      document.getElementById('aiPulse').style.animation = 'none';
+      document.getElementById('aiPulse').style.background = 'var(--accent-green)';
+      addLog({ level: 'info', agent: 'Python', message: (data && data.message) || 'Pipeline complete!', timestamp: new Date().toLocaleTimeString() });
+    });
 
     window.addEventListener('DOMContentLoaded', () => {
       loadHistory();
@@ -380,6 +519,7 @@
           showPipeline();
           connectSSE(currentTaskId);
           startPolling(currentTaskId);
+          socket.emit('watch', currentTaskId);
         } else { alert('Error: ' + d.error); }
       } catch (e) { alert('Failed to start pipeline: ' + e.message); }
       finally { btn.disabled = false; btn.textContent = '🚀 Launch'; }
@@ -395,6 +535,7 @@
       showPipeline();
       connectSSE(taskId);
       startPolling(taskId);
+      socket.emit('watch', taskId);
     }
 
     function showPipeline() {
