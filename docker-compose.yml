@@ -1,0 +1,102 @@
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  mongodb:
+    image: mongo:7
+    container_name: multiagent-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: multiagent
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    networks:
+      - multiagent-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: multiagent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - multiagent-net
+
+  # ── Python AI Service ───────────────────────────────────────────────────────
+
+  ai-service:
+    build:
+      context: ./multiagent-ai-service
+      dockerfile: Dockerfile
+    image: multiagent-ai-service:latest
+    container_name: multiagent-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    volumes:
+      - ai_generated:/app/generated_projects
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    networks:
+      - multiagent-net
+
+  # ── Node.js Orchestrator ────────────────────────────────────────────────────
+
+  node-orchestrator:
+    build:
+      context: ./multiagent
+      dockerfile: Dockerfile
+    image: multiagent-node:latest
+    container_name: multiagent-node-orchestrator
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    networks:
+      - multiagent-net
+
+volumes:
+  mongodb_data:
+  redis_data:
+  ai_generated:
+
+networks:
+  multiagent-net:
+    driver: bridge
