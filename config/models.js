@@ -13,9 +13,9 @@ module.exports = {
   groq: {
     apiKey: process.env.GROQ_API_KEY,
     models: {
-      fast:    'llama-3.3-70b-versatile',
-      quality: 'llama-3.3-70b-versatile',
-      light:   'llama-3.1-8b-instant',
+      fast:    process.env.GROQ_MODEL_FAST    || 'llama-3.3-70b-versatile',
+      quality: process.env.GROQ_MODEL_QUALITY || 'llama-3.3-70b-versatile',
+      light:   process.env.GROQ_MODEL_LIGHT   || 'llama-3.1-8b-instant',
     },
   },
 

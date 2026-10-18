@@ -31,6 +31,14 @@ async function main() {
   if (arg('limit')) tasks = tasks.slice(0, parseInt(arg('limit'), 10));
   const sandbox = !process.argv.includes('--no-sandbox');
 
+  if (sandbox) {
+    const probe = require('child_process').spawnSync('docker', ['info', '--format', '{{.ServerVersion}}'], { encoding: 'utf8', timeout: 15000 });
+    if (probe.status !== 0) {
+      console.error('Docker is not reachable but the sandbox is enabled — start Docker or pass --no-sandbox.');
+      process.exit(2);
+    }
+  }
+
   const provider = modelsConfig.provider;
   console.log(`Eval "${label}": ${tasks.length} tasks, provider=${provider}, sandbox=${sandbox}`);
   if (provider === 'simulated') {
@@ -44,6 +52,10 @@ async function main() {
       const done = r.sandbox ? (r.sandbox.skipped ? 'sandbox-skipped' : r.sandbox.success ? 'PASS' : 'FAIL') : 'n/a';
       console.log(`  ${task.id} recall=${r.decomposition.recall.toFixed(2)} cov=${r.coverage.toFixed(2)} exec=${done} ${r.latencyMs}ms`);
       results.push(r);
+      if (provider !== 'simulated' && r.modules.some((m) => m.fallback) && !process.argv.includes('--allow-fallback')) {
+        console.error(`\n❌ ${task.id}: the LLM call failed and a template was substituted (rate limit / bad model name?). Aborting so the results aren't contaminated. Pass --allow-fallback to keep going.`);
+        process.exit(3);
+      }
     } catch (err) {
       console.log(`  ${task.id} ERROR ${err.message}`);
       results.push({ id: task.id, idea: task.idea, error: err.message });
