@@ -79,7 +79,7 @@ stateDiagram-v2
 | Execution → coder repair loop | **Implemented** | `executeWithRepair`, controller tests |
 | Startup + health probe of the generated app | **Implemented**; informational unless `EXEC_REQUIRE_STARTUP=true` | `tests/executor.test.js` |
 | LLM error classification, timeouts, bounded retries, secret redaction | **Implemented** | `src/services/llmErrors.js`, `tests/worker.test.js` |
-| Restart recovery (resume from persisted modules), cancellation, de-duplication, module timeouts | **Implemented** against a fake DB; **not** run against a live MongoDB/Redis | controller tests |
+| Restart recovery (resume from persisted modules), cancellation, de-duplication, module timeouts | **Implemented**; unit-tested with fakes **and verified once on real MongoDB + Redis + BullMQ** (see below) | `tests/controller.test.js`, live run |
 | Optional human approval before executing generated code | **Implemented** (off by default) | `REQUIRE_EXECUTION_APPROVAL` |
 | Tracing (JSONL always; Langfuse optional) | **Implemented**; Langfuse export verified only against an unreachable server and a stub | `src/observability/tracer.js`, `tests/tracer.test.js` |
 | MCP server + client, approval-gated sensitive tools | **Implemented**, tested over stdio and in-memory transport | `src/mcp/`, `tests/mcp*.test.js` |
@@ -261,6 +261,16 @@ Evals found two real bugs while being built: `extractCode` truncated model outpu
 
 Details and the framework decision: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+### Live infrastructure check (manual, one run)
+
+Run on a laptop with `docker compose up -d mongodb redis` and `AI_PROVIDER=simulated` (no LLM tokens):
+
+- A pipeline for "task management tool…" ran end to end: 8 modules built through BullMQ, integrated, and executed in the real sandbox - **15/15 generated tests passed**, the startup probe correctly reported the app exiting because it needs a database. A second identical `POST /api/pipeline` returned the same `taskId` with `duplicate: true`.
+- Verdict was `failed`, correctly: the repo's `.env` sets `QUALITY_THRESHOLD=85`, template output scored 77 and 70, the retry budget (3 attempts) was spent, and the simulated provider caps verdicts at `unverified` anyway.
+- **Restart recovery:** the server was `kill -9`'d 3 s into a second run (MongoDB held `status: building`, most modules `pending`); on restart it logged `Resuming interrupted pipeline (attempt 1)`, rebuilt the remaining modules and reached a terminal state with `resumeCount: 1`.
+
+Not covered by this check: a real LLM through the full pipeline (only the codegen and tool-selection evals use one), repair rounds after a restart, and the Langfuse export.
+
 ## Tests & CI
 
 ```bash
@@ -273,7 +283,7 @@ npm test      # 277 tests across 19 suites; no MongoDB, Redis, Docker or API key
 
 - Live evals are single runs on a free-tier quota; the live tool-selection result is not saved yet.
 - Generated tests are structural (module loads, exports exist); `verified` means *they and the validator passed*, not that the app is behaviourally correct.
-- Controller/queue/Mongo paths are tested with fakes, not against live MongoDB/Redis.
+- Live infrastructure was exercised by hand once (below), not in CI; CI tests use fakes.
 - API auth is opt-in and header-only (see above); no LangGraph/DeepAgents (by design, see architecture doc); Python AI service is external.
 
 ## Repository layout

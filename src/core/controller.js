@@ -570,7 +570,7 @@ async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutp
 
   // ❌ Failed — enter feedback loop
   if (iteration >= maxIterations - 1) {
-    logger.warn(`Module "${mod.name}" reached max iterations (${maxIterations}), accepting with score: ${validation.score}`, {
+    logger.warn(`Module "${mod.name}" exhausted its ${maxIterations} attempts — keeping the code but marking it NOT validated (score ${validation.score})`, {
       taskId, moduleId: mod.moduleId,
     });
     // Built, but NEVER passed validation: keep it so integration still has a file,
