@@ -13,6 +13,8 @@ const FeedbackLog = require('../models/FeedbackLog');
 const config = require('../../config/default');
 const logger = require('../utils/logger').forAgent('Controller');
 const tracer = require('../observability/tracer');
+const { computeOutcome } = require('./outcome');
+const modelsConfig = require('../../config/models');
 
 // In-memory store for pipeline state machines (keyed by taskId)
 const pipelines = new Map();
@@ -176,14 +178,26 @@ async function runPipeline(taskId, idea, pipeline) {
     result.executionAttempts = final.attempts;
 
     // Save final output
+    // Finishing the workflow is not the same as producing a working artifact
+    const outcome = computeOutcome({
+      modules: [...completedOutputs.values()],
+      execution: result.execution,
+      provider: modelsConfig.provider,
+    });
+    result.outcome = outcome;
+    const failed = outcome.verdict === 'failed';
+
     await Task.findOneAndUpdate({ taskId }, {
-      status: 'completed',
-      finalOutput: result,
+      status: failed ? 'failed' : 'completed',
+      error: failed ? outcome.reasons.join(' | ') : null,
+      finalOutput: result, // kept even on failure so the artifact can be inspected
     });
 
-    pipeline.transition(STAGES.COMPLETED);
-    logger.info('Pipeline COMPLETED successfully', {
+    pipeline.transition(failed ? STAGES.FAILED : STAGES.COMPLETED);
+    logger.log(failed ? 'warn' : 'info', `Pipeline ${failed ? 'FAILED' : 'finished'} — verdict: ${outcome.verdict}`, {
       taskId,
+      verdict: outcome.verdict,
+      reasons: outcome.reasons,
       fileCount: result.files.length,
       moduleCount: completedModules.length,
     });
@@ -352,7 +366,7 @@ async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutp
 
   if (validation.passed) {
     // ✅ Passed — mark complete and register in context
-    await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { status: 'completed' });
+    await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { status: 'completed', validationPassed: true, usedFallback: !!result.fallback });
     await Task.findOneAndUpdate({ taskId }, { $inc: { 'metadata.completedModules': 1 } });
 
     // Register exports for inter-module context passing
@@ -362,6 +376,10 @@ async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutp
       exports: exportNames,
       filePath: getModuleFilePath(mod.type, mod.name),
       type: mod.type,
+      name: mod.name,
+      validationPassed: true,
+      usedFallback: !!result.fallback,
+      score: validation.score,
     });
 
     logger.info(`Module PASSED: "${mod.name}" — score: ${validation.score}, exports: [${exportNames.join(', ')}]`, {
@@ -375,11 +393,16 @@ async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutp
     logger.warn(`Module "${mod.name}" reached max iterations (${maxIterations}), accepting with score: ${validation.score}`, {
       taskId, moduleId: mod.moduleId,
     });
-    await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { status: 'completed' });
+    // Built, but NEVER passed validation: keep it so integration still has a file,
+    // flag it so the run cannot be reported as verified.
+    await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { status: 'completed', validationPassed: false, usedFallback: !!result.fallback });
     await Task.findOneAndUpdate({ taskId }, { $inc: { 'metadata.completedModules': 1 } });
 
     const exportNames = extractExportNames(result.code);
-    completedOutputs.set(mod.name, { code: result.code, exports: exportNames, filePath: getModuleFilePath(mod.type, mod.name), type: mod.type });
+    completedOutputs.set(mod.name, {
+      code: result.code, exports: exportNames, filePath: getModuleFilePath(mod.type, mod.name), type: mod.type,
+      name: mod.name, validationPassed: false, usedFallback: !!result.fallback, score: validation.score,
+    });
     return;
   }
 
