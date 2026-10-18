@@ -77,4 +77,13 @@ describe('Integration Agent', () => {
     expect(result.readme).toContain('npm install');
     expect(result.readme).toContain('npm start');
   });
+
+  test('generated tests only assert named exports for object-literal exports', () => {
+    const { generateTestFile } = require('../src/agents/integration');
+    const single = generateTestFile({ name: 'Cfg', output: 'const config = {};\nmodule.exports = config;' }, 'config/cfg.js');
+    expect(single).not.toContain('moduleExports.config');
+    expect(single).toContain('toBeDefined');
+    const obj = generateTestFile({ name: 'Svc', output: 'function a(){}\nmodule.exports = { a };' }, 'src/svc.js');
+    expect(obj).toContain('expect(moduleExports.a).toBeDefined()');
+  });
 });

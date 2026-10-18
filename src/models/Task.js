@@ -5,12 +5,15 @@ const taskSchema = new mongoose.Schema({
   idea:        { type: String, required: true },
   status:      {
     type: String,
-    enum: ['pending', 'decomposing', 'prompting', 'building', 'validating', 'feedback-loop', 'integrating', 'completed', 'failed'],
+    enum: ['pending', 'decomposing', 'prompting', 'building', 'validating', 'feedback-loop', 'integrating', 'awaiting-approval', 'completed', 'failed', 'cancelled'],
     default: 'pending',
   },
   modules:     [{ type: String, ref: 'Module' }],  // moduleId references
   finalOutput: { type: mongoose.Schema.Types.Mixed, default: null },
   error:       { type: String, default: null },
+  runId:       { type: String, default: null },   // id of the current execution attempt (changes on resume)
+  repairRound: { type: Number, default: 0 },       // sandbox repair rounds already spent (survives restarts)
+  resumeCount: { type: Number, default: 0 },       // how many times startup recovery re-launched this task
   metadata:    {
     totalModules:    { type: Number, default: 0 },
     completedModules:{ type: Number, default: 0 },

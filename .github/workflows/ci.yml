@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      # Unit + deterministic integration tests. No MongoDB, Redis, Docker or API keys needed:
+      # the DB/queue/sandbox are faked, and no network LLM is called.
+      - run: npm test
+      # Deterministic eval smoke (scripted mock model, trusted fixtures): proves the eval
+      # machinery works and the result files satisfy the schema. These numbers say nothing about a real model.
+      - run: npm run eval:codegen:mock
+      - run: npm run eval:validate
+
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Secret scan (tracked files)
+        run: node scripts/check-secrets.js
+      - name: Dependency audit (production deps, fail on high/critical)
+        run: npm audit --omit=dev --audit-level=high

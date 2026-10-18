@@ -17,6 +17,8 @@ const moduleSchema = new mongoose.Schema({
     default: 'pending',
   },
   qualityScore:  { type: Number, default: 0 },
+  validationPassed: { type: Boolean, default: false }, // false = accepted after retries without passing
+  usedFallback:  { type: Boolean, default: false },     // true = LLM failed, template code substituted
   iteration:     { type: Number, default: 0 },
   assignedModel: { type: String, default: 'gpt-4' },
 }, { timestamps: true });

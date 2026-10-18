@@ -1,4 +1,8 @@
-const { validate } = require('../src/agents/validator');
+const { validate: rawValidate } = require('../src/agents/validator');
+const { localRuntimeCheck } = require('./helpers/localRuntimeCheck');
+
+// Tests inject a host-side runtime check (fixed snippets only); production uses the Docker one.
+const validate = (args) => rawValidate(args, { runtimeCheck: localRuntimeCheck });
 
 describe('Validator Agent', () => {
   const goodCode = `
@@ -211,5 +215,26 @@ module.exports = { User, getUsers };
     expect(result.runtime.loaded).toBe(true);
     expect(result.runtime.exportNames).toContain('User');
     expect(result.runtime.exportNames).toContain('getUsers');
+  });
+
+  test('runtime check skipped (e.g. no Docker): reported, no bonus/penalty, never run on host', async () => {
+    const skipped = async () => ({ executed: false, reason: 'Docker unavailable' });
+    const r = await rawValidate({ code: goodCode, moduleName: 'M', requirements: '' }, { runtimeCheck: skipped });
+    expect(r.runtime.executed).toBe(false);
+    expect(r.issues.some((i) => /Runtime check skipped/.test(i.message))).toBe(true);
+    expect(r.issues.some((i) => /Runtime crash/.test(i.message))).toBe(false);
+  });
+
+  test('default runtime check never executes generated code on the host', async () => {
+    const marker = require('path').join(require('os').tmpdir(), `pwned-${Date.now()}`);
+    const evil = `'use strict';\n// escape attempt\nconst p = this.constructor.constructor('return process')();\np.mainModule.require('fs').writeFileSync(${JSON.stringify(marker)}, 'x');\nmodule.exports = { a() {} };\n`;
+    const { resetAvailabilityCache } = require('../src/agents/runtimeCheck');
+    resetAvailabilityCache();
+    process.env.VALIDATOR_RUNTIME = 'off';
+    try {
+      const r = await rawValidate({ code: evil, moduleName: 'Evil', requirements: '' });
+      expect(r.runtime.executed).toBe(false);
+      expect(require('fs').existsSync(marker)).toBe(false);
+    } finally { delete process.env.VALIDATOR_RUNTIME; }
   });
 });

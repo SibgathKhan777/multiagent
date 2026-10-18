@@ -1,0 +1,1317 @@
+{
+  "schemaVersion": 1,
+  "suite": "codegen",
+  "mode": "mock",
+  "label": "codegen-mock",
+  "createdAt": "2026-10-18T17:15:36.015Z",
+  "config": {
+    "provider": "mock",
+    "models": {
+      "behaviour": "mixed"
+    },
+    "maxAttempts": 2,
+    "grading": "local-trusted",
+    "datasetHash": "c22b42bfe6e3",
+    "taskIds": [
+      "slugify",
+      "isPalindrome",
+      "chunk",
+      "parseDuration",
+      "groupBy",
+      "romanToInt",
+      "deepMerge",
+      "validateEmail",
+      "fizzbuzz",
+      "flatten",
+      "wordFrequency",
+      "binarySearch",
+      "caesarCipher",
+      "formatBytes",
+      "mergeIntervals",
+      "compareVersions",
+      "parseCsvLine",
+      "topoSort",
+      "numberToWords",
+      "matchGlob"
+    ],
+    "aborted": null,
+    "note": "Scripted model: measures eval/pipeline machinery only."
+  },
+  "summary": {
+    "denominators": {
+      "tasks": 20,
+      "graded": 20,
+      "providerErrors": 0,
+      "sandboxUnavailable": 0,
+      "failedFirstAttempt": 12,
+      "testCases": 101
+    },
+    "taskSuccessRate": 0.6,
+    "taskSuccessRateOverall": 0.6,
+    "firstAttemptSuccessRate": 0.4,
+    "retryRecoveryRate": 0.3333333333333333,
+    "testCasePassRate": 0.5841584158415841,
+    "structuredOutputValidity": 0.8,
+    "providerErrorRate": 0,
+    "failureClasses": {
+      "wrong_answer": 4,
+      "syntax_error": 4
+    },
+    "avgLatencyMs": 5.75,
+    "avgInputTokens": 153.875,
+    "avgOutputTokens": 41.46875,
+    "totalEstimatedCostUsd": null
+  },
+  "results": [
+    {
+      "id": "slugify",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 11,
+          "usage": {
+            "input": 104,
+            "output": 36
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "isPalindrome",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 113,
+            "output": 32
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 4,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                "A man, a plan, a canal: Panama"
+              ],
+              "expected": true,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                "race a car"
+              ],
+              "expected": false,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                ""
+              ],
+              "expected": true,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 4,
+          "usage": {
+            "input": 224,
+            "output": 42
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 4,
+          "totalTests": 4,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": true
+    },
+    {
+      "id": "chunk",
+      "category": "array",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 4,
+          "usage": {
+            "input": 103,
+            "output": 29
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 4,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                2
+              ],
+              "expected": [
+                [
+                  1,
+                  2
+                ],
+                [
+                  3,
+                  4
+                ],
+                [
+                  5
+                ]
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                [],
+                3
+              ],
+              "expected": [],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                [
+                  1,
+                  2
+                ],
+                5
+              ],
+              "expected": [
+                [
+                  1,
+                  2
+                ]
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 6,
+          "usage": {
+            "input": 204,
+            "output": 29
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 4,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                2
+              ],
+              "expected": [
+                [
+                  1,
+                  2
+                ],
+                [
+                  3,
+                  4
+                ],
+                [
+                  5
+                ]
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                [],
+                3
+              ],
+              "expected": [],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                [
+                  1,
+                  2
+                ],
+                5
+              ],
+              "expected": [
+                [
+                  1,
+                  2
+                ]
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "wrong_answer",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "parseDuration",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 126,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 4,
+          "usage": {
+            "input": 177,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "syntax_error",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "groupBy",
+      "category": "collection",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 149,
+            "output": 45
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 3,
+          "totalTests": 3,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "romanToInt",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 4,
+          "usage": {
+            "input": 94,
+            "output": 62
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "deepMerge",
+      "category": "collection",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 129,
+            "output": 31
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 4,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                {
+                  "a": {
+                    "x": 1,
+                    "y": 2
+                  },
+                  "b": 1
+                },
+                {
+                  "a": {
+                    "y": 3,
+                    "z": 4
+                  },
+                  "c": 5
+                }
+              ],
+              "expected": {
+                "a": {
+                  "x": 1,
+                  "y": 3,
+                  "z": 4
+                },
+                "b": 1,
+                "c": 5
+              },
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                {
+                  "l": [
+                    1,
+                    2
+                  ]
+                },
+                {
+                  "l": [
+                    3
+                  ]
+                }
+              ],
+              "expected": {
+                "l": [
+                  3
+                ]
+              },
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                {},
+                {
+                  "a": 1
+                }
+              ],
+              "expected": {
+                "a": 1
+              },
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 4,
+          "usage": {
+            "input": 255,
+            "output": 67
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 4,
+          "totalTests": 4,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": true
+    },
+    {
+      "id": "validateEmail",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 117,
+            "output": 33
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                "a@b.co"
+              ],
+              "expected": true,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                "a@b"
+              ],
+              "expected": false,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                "@b.com"
+              ],
+              "expected": false,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 223,
+            "output": 33
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                "a@b.co"
+              ],
+              "expected": true,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                "a@b"
+              ],
+              "expected": false,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                "@b.com"
+              ],
+              "expected": false,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "wrong_answer",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "fizzbuzz",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 112,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 3,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 164,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 3,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "syntax_error",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "flatten",
+      "category": "array",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 88,
+            "output": 34
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 4,
+          "totalTests": 4,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "wordFrequency",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 118,
+            "output": 49
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 3,
+          "totalTests": 3,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "binarySearch",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 2,
+          "usage": {
+            "input": 95,
+            "output": 32
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                [
+                  1,
+                  3,
+                  5,
+                  7,
+                  9
+                ],
+                7
+              ],
+              "expected": 3,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                [
+                  1,
+                  3,
+                  5
+                ],
+                2
+              ],
+              "expected": -1,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                [],
+                1
+              ],
+              "expected": -1,
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 4,
+          "usage": {
+            "input": 199,
+            "output": 56
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": true
+    },
+    {
+      "id": "caesarCipher",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 109,
+            "output": 32
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                "abc",
+                1
+              ],
+              "expected": "bcd",
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                "xyz",
+                3
+              ],
+              "expected": "abc",
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                "Hello, World!",
+                5
+              ],
+              "expected": "Mjqqt, Btwqi!",
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 220,
+            "output": 32
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                "abc",
+                1
+              ],
+              "expected": "bcd",
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                "xyz",
+                3
+              ],
+              "expected": "abc",
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                "Hello, World!",
+                5
+              ],
+              "expected": "Mjqqt, Btwqi!",
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "wrong_answer",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "formatBytes",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 109,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 6,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 4,
+          "usage": {
+            "input": 160,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 6,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "syntax_error",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "mergeIntervals",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 137,
+            "output": 79
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "compareVersions",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 149,
+            "output": 136
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 6,
+          "totalTests": 6,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "parseCsvLine",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 146,
+            "output": 32
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 6,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                "a,b,c"
+              ],
+              "expected": [
+                "a",
+                "b",
+                "c"
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                "a,\"b,c\",d"
+              ],
+              "expected": [
+                "a",
+                "b,c",
+                "d"
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                "\"say \"\"hi\"\"\",x"
+              ],
+              "expected": [
+                "say \"hi\"",
+                "x"
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 5,
+          "usage": {
+            "input": 264,
+            "output": 100
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 6,
+          "totalTests": 6,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": true
+    },
+    {
+      "id": "topoSort",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 156,
+            "output": 30
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                {
+                  "a": [
+                    "b",
+                    "c"
+                  ],
+                  "b": [
+                    "c"
+                  ],
+                  "c": []
+                }
+              ],
+              "expected": [
+                "c",
+                "b",
+                "a"
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                {
+                  "x": [],
+                  "y": []
+                }
+              ],
+              "expected": [
+                "x",
+                "y"
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                {
+                  "a": [
+                    "b"
+                  ],
+                  "b": [
+                    "a"
+                  ]
+                }
+              ],
+              "expected": "(throws)",
+              "got": "__undefined__",
+              "kind": "expected_throw"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 272,
+            "output": 30
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 0,
+          "totalTests": 5,
+          "failures": [
+            {
+              "index": 0,
+              "args": [
+                {
+                  "a": [
+                    "b",
+                    "c"
+                  ],
+                  "b": [
+                    "c"
+                  ],
+                  "c": []
+                }
+              ],
+              "expected": [
+                "c",
+                "b",
+                "a"
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 1,
+              "args": [
+                {
+                  "x": [],
+                  "y": []
+                }
+              ],
+              "expected": [
+                "x",
+                "y"
+              ],
+              "got": "__undefined__",
+              "kind": "wrong_answer"
+            },
+            {
+              "index": 2,
+              "args": [
+                {
+                  "a": [
+                    "b"
+                  ],
+                  "b": [
+                    "a"
+                  ]
+                }
+              ],
+              "expected": "(throws)",
+              "got": "__undefined__",
+              "kind": "expected_throw"
+            }
+          ],
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "wrong_answer",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "numberToWords",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 113,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 9,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 164,
+            "output": 15
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "syntax_error",
+          "passedTests": 0,
+          "totalTests": 9,
+          "failures": [],
+          "message": "Function statements require a function name",
+          "executed": true
+        }
+      ],
+      "success": false,
+      "finalClass": "syntax_error",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "matchGlob",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3,
+          "usage": {
+            "input": 131,
+            "output": 126
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 9,
+          "totalTests": 9,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    }
+  ],
+  "failedCases": [
+    {
+      "id": "chunk",
+      "class": "wrong_answer"
+    },
+    {
+      "id": "parseDuration",
+      "class": "syntax_error"
+    },
+    {
+      "id": "validateEmail",
+      "class": "wrong_answer"
+    },
+    {
+      "id": "fizzbuzz",
+      "class": "syntax_error"
+    },
+    {
+      "id": "caesarCipher",
+      "class": "wrong_answer"
+    },
+    {
+      "id": "formatBytes",
+      "class": "syntax_error"
+    },
+    {
+      "id": "topoSort",
+      "class": "wrong_answer"
+    },
+    {
+      "id": "numberToWords",
+      "class": "syntax_error"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ const { initQueue, closeQueue } = require('./queue/queue');
 const memory = require('./memory/memory');
 const routes = require('./api/routes');
 const progressEmitter = require('./realtime/progressEmitter');
+const tracer = require('./observability/tracer');
 const logger = require('./utils/logger').forAgent('App');
 
 const app = express();
@@ -47,7 +48,9 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 }));
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-app.use('/api', routes);
+const { createApiAuth } = require('./api/auth');
+if (!process.env.API_KEY) logger.warn('API_KEY is not set — the HTTP API is unauthenticated');
+app.use('/api', createApiAuth(), routes);
 
 // Root redirect to dashboard
 app.get('/', (req, res) => {
@@ -96,10 +99,17 @@ async function start() {
     logger.info('MongoDB connected');
 
     logger.info('Initializing queue system...');
+    logger.info(`Tracing sinks: ${tracer.initFromEnv().join(', ') || 'none'}`);
     initQueue();
     logger.info('Queue system ready');
 
     await memory.loadFromDB();
+
+    // Tasks left mid-flight by a previous process are resumed (or failed with an accurate reason)
+    const recovery = await require('./core/controller').recoverInterruptedPipelines();
+    if (recovery.resumed.length || recovery.failed.length) {
+      logger.warn(`Startup recovery: resumed ${recovery.resumed.length}, failed ${recovery.failed.length} interrupted pipeline(s)`);
+    }
 
     const modelsConfig = require('../config/models');
     const providerName = modelsConfig.displayNames[modelsConfig.provider] || modelsConfig.provider;
@@ -138,6 +148,8 @@ async function start() {
       io.close();
       server.close();
       await closeQueue();
+      await tracer.shutdown(); // flush traces
+      await require('./mcp/toolbox').close();
       await mongoose.connection.close();
       logger.info('Shutdown complete');
       process.exit(0);

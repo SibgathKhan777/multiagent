@@ -487,50 +487,33 @@ function generateTestFile(mod, filePath) {
 
   let test = `// Tests for ${mod.name}\n`;
 
-  // Only generate require if exports exist
+  // The module must load for real (dependencies are installed in the sandbox);
+  // a load error fails the suite instead of being swallowed.
   if (exports.length > 0) {
-    test += `// Note: these tests verify export structure\n`;
-    test += `// In a real project, mock dependencies before requiring\n\n`;
     test += `describe('${mod.name}', () => {\n`;
     test += `  let moduleExports;\n\n`;
     test += `  beforeAll(() => {\n`;
-    test += `    try {\n`;
-    test += `      // Mock common dependencies\n`;
-    test += `      jest.mock('mongoose', () => ({\n`;
-    test += `        Schema: class { constructor() {} },\n`;
-    test += `        model: jest.fn(() => ({})),\n`;
-    test += `        connect: jest.fn(),\n`;
-    test += `      }));\n`;
-    test += `      jest.mock('express', () => {\n`;
-    test += `        const router = { get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn(), delete: jest.fn(), use: jest.fn() };\n`;
-    test += `        return Object.assign(jest.fn(() => ({ use: jest.fn(), listen: jest.fn() })), { Router: () => router, json: jest.fn(), static: jest.fn() });\n`;
-    test += `      });\n`;
-    test += `      moduleExports = require('${relativePath}');\n`;
-    test += `    } catch (e) {\n`;
-    test += `      console.log('Module load skipped:', e.message);\n`;
-    test += `    }\n`;
+    test += `    moduleExports = require('${relativePath}');\n`;
     test += `  });\n\n`;
 
-    test += `  test('module should load without fatal errors', () => {\n`;
-    test += `    // If moduleExports is undefined, the module failed to load\n`;
-    test += `    // This is still a useful test signal\n`;
-    test += `    expect(true).toBe(true);\n`;
+    test += `  test('module should load without errors', () => {\n`;
+    test += `    expect(moduleExports).toBeDefined();\n`;
     test += `  });\n\n`;
 
-    if (exports.length > 0) {
+    // Only assert named properties for `module.exports = { a, b }`. For
+    // `module.exports = thing` the extracted name is a local identifier, not a property.
+    if (/module\.exports\s*=\s*\{/.test(code)) {
       test += `  test('should export expected interface', () => {\n`;
-      test += `    if (!moduleExports) return; // Skip if module failed to load\n`;
       for (const exp of exports.slice(0, 8)) {
         test += `    expect(moduleExports.${exp}).toBeDefined();\n`;
       }
-      test += `  });\n\n`;
+      test += `  });\n`;
     }
-
     test += `});\n`;
   } else {
     test += `describe('${mod.name}', () => {\n`;
-    test += `  test('placeholder — module exports could not be detected', () => {\n`;
-    test += `    expect(true).toBe(true);\n`;
+    test += `  test('module should load without errors', () => {\n`;
+    test += `    expect(() => require('${relativePath}')).not.toThrow();\n`;
     test += `  });\n`;
     test += `});\n`;
   }
@@ -741,6 +724,6 @@ async function integrate({ modules }) {
   };
 }
 
-module.exports = { integrate };
+module.exports = { integrate, getFilePath, generateTestFile };
 
 

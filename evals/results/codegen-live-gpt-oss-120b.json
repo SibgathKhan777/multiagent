@@ -1,0 +1,598 @@
+{
+  "schemaVersion": 1,
+  "suite": "codegen",
+  "mode": "live",
+  "label": "codegen-live-gpt-oss-120b",
+  "createdAt": "2026-10-18T18:14:19.036Z",
+  "config": {
+    "provider": "groq",
+    "models": {
+      "fast": "openai/gpt-oss-120b",
+      "quality": "openai/gpt-oss-120b",
+      "light": "openai/gpt-oss-20b"
+    },
+    "maxAttempts": 2,
+    "grading": "docker",
+    "llm": {
+      "maxAttempts": 5,
+      "timeoutMs": 60000
+    },
+    "datasetHash": "c22b42bfe6e3",
+    "taskIds": [
+      "slugify",
+      "isPalindrome",
+      "chunk",
+      "parseDuration",
+      "groupBy",
+      "romanToInt",
+      "deepMerge",
+      "validateEmail",
+      "fizzbuzz",
+      "flatten",
+      "wordFrequency",
+      "binarySearch",
+      "caesarCipher",
+      "formatBytes",
+      "mergeIntervals",
+      "compareVersions",
+      "parseCsvLine",
+      "topoSort",
+      "numberToWords",
+      "matchGlob"
+    ],
+    "aborted": null,
+    "note": "Live model output graded in Docker. Attempt 2 sees the failing hidden cases (mirrors the pipeline repair loop)."
+  },
+  "summary": {
+    "denominators": {
+      "tasks": 20,
+      "graded": 20,
+      "providerErrors": 0,
+      "sandboxUnavailable": 0,
+      "failedFirstAttempt": 1,
+      "testCases": 101
+    },
+    "taskSuccessRate": 1,
+    "taskSuccessRateOverall": 1,
+    "firstAttemptSuccessRate": 0.95,
+    "retryRecoveryRate": 1,
+    "testCasePassRate": 1,
+    "structuredOutputValidity": 1,
+    "providerErrorRate": 0,
+    "failureClasses": {},
+    "avgLatencyMs": 12064.35,
+    "avgInputTokens": 227.28571428571428,
+    "avgOutputTokens": 639.2380952380952,
+    "totalEstimatedCostUsd": null
+  },
+  "results": [
+    {
+      "id": "slugify",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 1132,
+          "usage": {
+            "input": 196,
+            "output": 193
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "isPalindrome",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 636,
+          "usage": {
+            "input": 200,
+            "output": 176
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 4,
+          "totalTests": 4,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "chunk",
+      "category": "array",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 5001,
+          "usage": {
+            "input": 211,
+            "output": 230
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 2,
+          "classification": "passed",
+          "passedTests": 4,
+          "totalTests": 4,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "parseDuration",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3635,
+          "usage": {
+            "input": 242,
+            "output": 605
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "groupBy",
+      "category": "collection",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 906,
+          "usage": {
+            "input": 269,
+            "output": 401
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 3,
+          "totalTests": 3,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "romanToInt",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 13881,
+          "usage": {
+            "input": 200,
+            "output": 352
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 2,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "deepMerge",
+      "category": "collection",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 17394,
+          "usage": {
+            "input": 246,
+            "output": 690
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 4,
+          "totalTests": 4,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "validateEmail",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 871,
+          "usage": {
+            "input": 203,
+            "output": 395
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "fizzbuzz",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 2844,
+          "usage": {
+            "input": 223,
+            "output": 206
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 3,
+          "totalTests": 3,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "flatten",
+      "category": "array",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 21677,
+          "usage": {
+            "input": 189,
+            "output": 269
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 2,
+          "classification": "passed",
+          "passedTests": 4,
+          "totalTests": 4,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "wordFrequency",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3627,
+          "usage": {
+            "input": 209,
+            "output": 335
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 3,
+          "totalTests": 3,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "binarySearch",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 21110,
+          "usage": {
+            "input": 196,
+            "output": 255
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 2,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "caesarCipher",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 1248,
+          "usage": {
+            "input": 202,
+            "output": 368
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "formatBytes",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 1683,
+          "usage": {
+            "input": 223,
+            "output": 499
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 6,
+          "totalTests": 6,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "mergeIntervals",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 1143,
+          "usage": {
+            "input": 239,
+            "output": 697
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "compareVersions",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 59007,
+          "usage": {
+            "input": 249,
+            "output": 539
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 3,
+          "classification": "passed",
+          "passedTests": 6,
+          "totalTests": 6,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "parseCsvLine",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 3724,
+          "usage": {
+            "input": 235,
+            "output": 669
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 6,
+          "totalTests": 6,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "topoSort",
+      "category": "algorithm",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 38913,
+          "usage": {
+            "input": 246,
+            "output": 3199
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 3,
+          "classification": "passed",
+          "passedTests": 5,
+          "totalTests": 5,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "numberToWords",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 37520,
+          "usage": {
+            "input": 218,
+            "output": 1746
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 2,
+          "classification": "passed",
+          "passedTests": 9,
+          "totalTests": 9,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": false
+    },
+    {
+      "id": "matchGlob",
+      "category": "string",
+      "attempts": [
+        {
+          "attempt": 0,
+          "generationMode": "llm",
+          "latencyMs": 1184,
+          "usage": {
+            "input": 215,
+            "output": 344
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "wrong_answer",
+          "passedTests": 8,
+          "totalTests": 9,
+          "failures": [
+            {
+              "index": 7,
+              "args": [
+                "[a]",
+                "a"
+              ],
+              "expected": false,
+              "got": true,
+              "kind": "wrong_answer"
+            }
+          ],
+          "executed": true
+        },
+        {
+          "attempt": 1,
+          "generationMode": "llm",
+          "latencyMs": 4151,
+          "usage": {
+            "input": 362,
+            "output": 1256
+          },
+          "estimatedCostUsd": null,
+          "generationAttempts": 1,
+          "classification": "passed",
+          "passedTests": 9,
+          "totalTests": 9,
+          "failures": [],
+          "executed": true
+        }
+      ],
+      "success": true,
+      "finalClass": "passed",
+      "recoveredByRetry": true
+    }
+  ],
+  "failedCases": []
+}
