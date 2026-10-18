@@ -1,0 +1,1167 @@
+{
+  "version": 1,
+  "note": "Function-level tasks graded by HIDDEN executable tests (args/expect). Only the first test is shown to the model as an example. Hand-written; review before treating as ground truth.",
+  "tasks": [
+    {
+      "id": "slugify",
+      "export": "slugify",
+      "category": "string",
+      "requirements": "slugify(text) returns a URL slug: lowercase, every run of characters outside a-z0-9 becomes a single '-', and leading/trailing '-' are removed.",
+      "tests": [
+        {
+          "args": [
+            "Hello World!"
+          ],
+          "expect": "hello-world"
+        },
+        {
+          "args": [
+            "  Multiple   spaces  "
+          ],
+          "expect": "multiple-spaces"
+        },
+        {
+          "args": [
+            "Already-slugged"
+          ],
+          "expect": "already-slugged"
+        },
+        {
+          "args": [
+            "!!!"
+          ],
+          "expect": ""
+        },
+        {
+          "args": [
+            "Café Münster"
+          ],
+          "expect": "caf-m-nster"
+        }
+      ]
+    },
+    {
+      "id": "isPalindrome",
+      "export": "isPalindrome",
+      "category": "string",
+      "requirements": "isPalindrome(str) returns true if str reads the same forwards and backwards, ignoring case and any non-alphanumeric characters. The empty string is a palindrome.",
+      "tests": [
+        {
+          "args": [
+            "A man, a plan, a canal: Panama"
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "race a car"
+          ],
+          "expect": false
+        },
+        {
+          "args": [
+            ""
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "No 'x' in Nixon"
+          ],
+          "expect": true
+        }
+      ]
+    },
+    {
+      "id": "chunk",
+      "export": "chunk",
+      "category": "array",
+      "requirements": "chunk(array, size) splits array into consecutive sub-arrays of length size (the last may be shorter). Throws an Error if size is less than 1.",
+      "tests": [
+        {
+          "args": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            2
+          ],
+          "expect": [
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              5
+            ]
+          ]
+        },
+        {
+          "args": [
+            [],
+            3
+          ],
+          "expect": []
+        },
+        {
+          "args": [
+            [
+              1,
+              2
+            ],
+            5
+          ],
+          "expect": [
+            [
+              1,
+              2
+            ]
+          ]
+        },
+        {
+          "args": [
+            [
+              1
+            ],
+            0
+          ],
+          "throws": true
+        }
+      ]
+    },
+    {
+      "id": "parseDuration",
+      "export": "parseDuration",
+      "category": "string",
+      "requirements": "parseDuration(str) converts a duration like '1h30m', '45s', '2d' or '1h 15m 10s' into total seconds. Units: d=86400, h=3600, m=60, s=1. Throws an Error if the string contains anything that is not a number followed by one of those units.",
+      "tests": [
+        {
+          "args": [
+            "1h30m"
+          ],
+          "expect": 5400
+        },
+        {
+          "args": [
+            "45s"
+          ],
+          "expect": 45
+        },
+        {
+          "args": [
+            "2d"
+          ],
+          "expect": 172800
+        },
+        {
+          "args": [
+            "1h 15m 10s"
+          ],
+          "expect": 4510
+        },
+        {
+          "args": [
+            "abc"
+          ],
+          "throws": true
+        }
+      ]
+    },
+    {
+      "id": "groupBy",
+      "export": "groupBy",
+      "category": "collection",
+      "requirements": "groupBy(items, key) groups an array of objects by the value of item[key] and returns an object mapping each value (as a string) to the array of items that have it, preserving order. Items missing the key are grouped under 'undefined'.",
+      "tests": [
+        {
+          "args": [
+            [
+              {
+                "t": "a",
+                "v": 1
+              },
+              {
+                "t": "b",
+                "v": 2
+              },
+              {
+                "t": "a",
+                "v": 3
+              }
+            ],
+            "t"
+          ],
+          "expect": {
+            "a": [
+              {
+                "t": "a",
+                "v": 1
+              },
+              {
+                "t": "a",
+                "v": 3
+              }
+            ],
+            "b": [
+              {
+                "t": "b",
+                "v": 2
+              }
+            ]
+          }
+        },
+        {
+          "args": [
+            [],
+            "t"
+          ],
+          "expect": {}
+        },
+        {
+          "args": [
+            [
+              {
+                "x": 1
+              }
+            ],
+            "t"
+          ],
+          "expect": {
+            "undefined": [
+              {
+                "x": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "romanToInt",
+      "export": "romanToInt",
+      "category": "algorithm",
+      "requirements": "romanToInt(s) converts a Roman numeral (I, V, X, L, C, D, M with subtractive notation such as IV and IX) to an integer.",
+      "tests": [
+        {
+          "args": [
+            "III"
+          ],
+          "expect": 3
+        },
+        {
+          "args": [
+            "IV"
+          ],
+          "expect": 4
+        },
+        {
+          "args": [
+            "IX"
+          ],
+          "expect": 9
+        },
+        {
+          "args": [
+            "LVIII"
+          ],
+          "expect": 58
+        },
+        {
+          "args": [
+            "MCMXCIV"
+          ],
+          "expect": 1994
+        }
+      ]
+    },
+    {
+      "id": "deepMerge",
+      "export": "deepMerge",
+      "category": "collection",
+      "requirements": "deepMerge(a, b) returns a new object that recursively merges plain objects; values from b win; arrays and non-object values from b replace those in a. Neither input is mutated.",
+      "tests": [
+        {
+          "args": [
+            {
+              "a": {
+                "x": 1,
+                "y": 2
+              },
+              "b": 1
+            },
+            {
+              "a": {
+                "y": 3,
+                "z": 4
+              },
+              "c": 5
+            }
+          ],
+          "expect": {
+            "a": {
+              "x": 1,
+              "y": 3,
+              "z": 4
+            },
+            "b": 1,
+            "c": 5
+          }
+        },
+        {
+          "args": [
+            {
+              "l": [
+                1,
+                2
+              ]
+            },
+            {
+              "l": [
+                3
+              ]
+            }
+          ],
+          "expect": {
+            "l": [
+              3
+            ]
+          }
+        },
+        {
+          "args": [
+            {},
+            {
+              "a": 1
+            }
+          ],
+          "expect": {
+            "a": 1
+          }
+        },
+        {
+          "args": [
+            {
+              "a": {
+                "b": {
+                  "c": 1
+                }
+              }
+            },
+            {
+              "a": {
+                "b": {
+                  "d": 2
+                }
+              }
+            }
+          ],
+          "expect": {
+            "a": {
+              "b": {
+                "c": 1,
+                "d": 2
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "validateEmail",
+      "export": "validateEmail",
+      "category": "string",
+      "requirements": "validateEmail(s) returns true for a plausible email address: exactly one '@', a non-empty local part without spaces, and a domain containing at least one '.' with non-empty labels. Otherwise false.",
+      "tests": [
+        {
+          "args": [
+            "a@b.co"
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "a@b"
+          ],
+          "expect": false
+        },
+        {
+          "args": [
+            "@b.com"
+          ],
+          "expect": false
+        },
+        {
+          "args": [
+            "a b@c.com"
+          ],
+          "expect": false
+        },
+        {
+          "args": [
+            "user.name+tag@example.org"
+          ],
+          "expect": true
+        }
+      ]
+    },
+    {
+      "id": "fizzbuzz",
+      "export": "fizzbuzz",
+      "category": "algorithm",
+      "requirements": "fizzbuzz(n) returns an array of strings for 1..n: 'Fizz' for multiples of 3, 'Buzz' for multiples of 5, 'FizzBuzz' for both, otherwise the number as a string. n = 0 gives [].",
+      "tests": [
+        {
+          "args": [
+            5
+          ],
+          "expect": [
+            "1",
+            "2",
+            "Fizz",
+            "4",
+            "Buzz"
+          ]
+        },
+        {
+          "args": [
+            0
+          ],
+          "expect": []
+        },
+        {
+          "args": [
+            15
+          ],
+          "expect": [
+            "1",
+            "2",
+            "Fizz",
+            "4",
+            "Buzz",
+            "Fizz",
+            "7",
+            "8",
+            "Fizz",
+            "Buzz",
+            "11",
+            "Fizz",
+            "13",
+            "14",
+            "FizzBuzz"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "flatten",
+      "export": "flatten",
+      "category": "array",
+      "requirements": "flatten(arr) deeply flattens nested arrays into a single array, preserving order.",
+      "tests": [
+        {
+          "args": [
+            [
+              1,
+              [
+                2,
+                [
+                  3,
+                  [
+                    4
+                  ]
+                ]
+              ]
+            ]
+          ],
+          "expect": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "args": [
+            [
+              []
+            ]
+          ],
+          "expect": []
+        },
+        {
+          "args": [
+            [
+              1,
+              2
+            ]
+          ],
+          "expect": [
+            1,
+            2
+          ]
+        },
+        {
+          "args": [
+            [
+              [
+                [
+                  [
+                    "a"
+                  ]
+                ]
+              ],
+              "b"
+            ]
+          ],
+          "expect": [
+            "a",
+            "b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wordFrequency",
+      "export": "wordFrequency",
+      "category": "string",
+      "requirements": "wordFrequency(text) returns an object mapping each lowercase word to how many times it appears. Words are runs of letters/digits/apostrophes; punctuation separates words.",
+      "tests": [
+        {
+          "args": [
+            "The cat. The dog!"
+          ],
+          "expect": {
+            "the": 2,
+            "cat": 1,
+            "dog": 1
+          }
+        },
+        {
+          "args": [
+            ""
+          ],
+          "expect": {}
+        },
+        {
+          "args": [
+            "It's it's IT'S"
+          ],
+          "expect": {
+            "it's": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "binarySearch",
+      "export": "binarySearch",
+      "category": "algorithm",
+      "requirements": "binarySearch(sortedArray, target) returns the index of target in the ascending sorted array, or -1 if absent.",
+      "tests": [
+        {
+          "args": [
+            [
+              1,
+              3,
+              5,
+              7,
+              9
+            ],
+            7
+          ],
+          "expect": 3
+        },
+        {
+          "args": [
+            [
+              1,
+              3,
+              5
+            ],
+            2
+          ],
+          "expect": -1
+        },
+        {
+          "args": [
+            [],
+            1
+          ],
+          "expect": -1
+        },
+        {
+          "args": [
+            [
+              1
+            ],
+            1
+          ],
+          "expect": 0
+        },
+        {
+          "args": [
+            [
+              2,
+              4,
+              6,
+              8
+            ],
+            2
+          ],
+          "expect": 0
+        }
+      ]
+    },
+    {
+      "id": "caesarCipher",
+      "export": "caesarCipher",
+      "category": "string",
+      "requirements": "caesarCipher(text, shift) shifts each ASCII letter by shift positions (wrapping around the alphabet, preserving case); shift may be negative; non-letters are unchanged.",
+      "tests": [
+        {
+          "args": [
+            "abc",
+            1
+          ],
+          "expect": "bcd"
+        },
+        {
+          "args": [
+            "xyz",
+            3
+          ],
+          "expect": "abc"
+        },
+        {
+          "args": [
+            "Hello, World!",
+            5
+          ],
+          "expect": "Mjqqt, Btwqi!"
+        },
+        {
+          "args": [
+            "bcd",
+            -1
+          ],
+          "expect": "abc"
+        },
+        {
+          "args": [
+            "abc",
+            27
+          ],
+          "expect": "bcd"
+        }
+      ]
+    },
+    {
+      "id": "formatBytes",
+      "export": "formatBytes",
+      "category": "string",
+      "requirements": "formatBytes(bytes) formats a byte count using base 1024 and units B, KB, MB, GB: at most 2 decimals, trailing zeros removed, e.g. 1536 -> '1.5 KB', 1024 -> '1 KB', 5 -> '5 B'.",
+      "tests": [
+        {
+          "args": [
+            0
+          ],
+          "expect": "0 B"
+        },
+        {
+          "args": [
+            1024
+          ],
+          "expect": "1 KB"
+        },
+        {
+          "args": [
+            1536
+          ],
+          "expect": "1.5 KB"
+        },
+        {
+          "args": [
+            1048576
+          ],
+          "expect": "1 MB"
+        },
+        {
+          "args": [
+            1000
+          ],
+          "expect": "1000 B"
+        },
+        {
+          "args": [
+            1073741824
+          ],
+          "expect": "1 GB"
+        }
+      ]
+    },
+    {
+      "id": "mergeIntervals",
+      "export": "mergeIntervals",
+      "category": "algorithm",
+      "requirements": "mergeIntervals(intervals) takes an array of [start, end] pairs (possibly unsorted) and returns a new array where overlapping or touching intervals (end of one >= start of the next) are merged, sorted by start. The input must not be mutated.",
+      "tests": [
+        {
+          "args": [
+            [
+              [
+                1,
+                3
+              ],
+              [
+                2,
+                6
+              ],
+              [
+                8,
+                10
+              ],
+              [
+                15,
+                18
+              ]
+            ]
+          ],
+          "expect": [
+            [
+              1,
+              6
+            ],
+            [
+              8,
+              10
+            ],
+            [
+              15,
+              18
+            ]
+          ]
+        },
+        {
+          "args": [
+            [
+              [
+                1,
+                4
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          ],
+          "expect": [
+            [
+              1,
+              5
+            ]
+          ]
+        },
+        {
+          "args": [
+            [
+              [
+                8,
+                10
+              ],
+              [
+                1,
+                3
+              ],
+              [
+                2,
+                6
+              ]
+            ]
+          ],
+          "expect": [
+            [
+              1,
+              6
+            ],
+            [
+              8,
+              10
+            ]
+          ]
+        },
+        {
+          "args": [
+            []
+          ],
+          "expect": []
+        },
+        {
+          "args": [
+            [
+              [
+                1,
+                10
+              ],
+              [
+                2,
+                3
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          ],
+          "expect": [
+            [
+              1,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compareVersions",
+      "export": "compareVersions",
+      "category": "string",
+      "requirements": "compareVersions(a, b) compares two version strings and returns -1, 0 or 1. Dot-separated numeric parts are compared numerically, missing parts count as 0 ('1.0' equals '1.0.0'). A version with a pre-release tag after '-' is lower than the same version without one; two pre-release tags are compared as plain strings.",
+      "tests": [
+        {
+          "args": [
+            "1.2.10",
+            "1.2.9"
+          ],
+          "expect": 1
+        },
+        {
+          "args": [
+            "1.0",
+            "1.0.0"
+          ],
+          "expect": 0
+        },
+        {
+          "args": [
+            "2.0.0",
+            "10.0.0"
+          ],
+          "expect": -1
+        },
+        {
+          "args": [
+            "1.0.0-alpha",
+            "1.0.0"
+          ],
+          "expect": -1
+        },
+        {
+          "args": [
+            "1.0.0-alpha",
+            "1.0.0-beta"
+          ],
+          "expect": -1
+        },
+        {
+          "args": [
+            "1.0.1-alpha",
+            "1.0.0"
+          ],
+          "expect": 1
+        }
+      ]
+    },
+    {
+      "id": "parseCsvLine",
+      "export": "parseCsvLine",
+      "category": "string",
+      "requirements": "parseCsvLine(line) splits one CSV line into an array of field strings. Fields are separated by commas; a field may be wrapped in double quotes, in which case it may contain commas and a doubled quote (\"\") stands for one literal quote. An empty line gives [''] and a trailing comma gives a trailing empty field.",
+      "tests": [
+        {
+          "args": [
+            "a,b,c"
+          ],
+          "expect": [
+            "a",
+            "b",
+            "c"
+          ]
+        },
+        {
+          "args": [
+            "a,\"b,c\",d"
+          ],
+          "expect": [
+            "a",
+            "b,c",
+            "d"
+          ]
+        },
+        {
+          "args": [
+            "\"say \"\"hi\"\"\",x"
+          ],
+          "expect": [
+            "say \"hi\"",
+            "x"
+          ]
+        },
+        {
+          "args": [
+            ""
+          ],
+          "expect": [
+            ""
+          ]
+        },
+        {
+          "args": [
+            "a,,c"
+          ],
+          "expect": [
+            "a",
+            "",
+            "c"
+          ]
+        },
+        {
+          "args": [
+            "a,"
+          ],
+          "expect": [
+            "a",
+            ""
+          ]
+        }
+      ]
+    },
+    {
+      "id": "topoSort",
+      "export": "topoSort",
+      "category": "algorithm",
+      "requirements": "topoSort(graph) takes an object mapping each node to an array of the nodes it depends on, and returns an array of all nodes (including ones that only appear as dependencies) ordered so every node comes after its dependencies. When several nodes are ready at once, pick them in alphabetical order. Throws an Error if there is a cycle.",
+      "tests": [
+        {
+          "args": [
+            {
+              "a": [
+                "b",
+                "c"
+              ],
+              "b": [
+                "c"
+              ],
+              "c": []
+            }
+          ],
+          "expect": [
+            "c",
+            "b",
+            "a"
+          ]
+        },
+        {
+          "args": [
+            {
+              "x": [],
+              "y": []
+            }
+          ],
+          "expect": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "args": [
+            {
+              "a": [
+                "b"
+              ],
+              "b": [
+                "a"
+              ]
+            }
+          ],
+          "throws": true
+        },
+        {
+          "args": [
+            {
+              "a": [
+                "z"
+              ]
+            }
+          ],
+          "expect": [
+            "z",
+            "a"
+          ]
+        },
+        {
+          "args": [
+            {
+              "d": [
+                "b",
+                "c"
+              ],
+              "b": [
+                "a"
+              ],
+              "c": [
+                "a"
+              ],
+              "a": []
+            }
+          ],
+          "expect": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "numberToWords",
+      "export": "numberToWords",
+      "category": "string",
+      "requirements": "numberToWords(n) spells out an integer from 0 to 999999 in lowercase English, hyphenating compound numbers 21-99 (e.g. 'twenty-one') and NOT using the word 'and' (e.g. 'one hundred one').",
+      "tests": [
+        {
+          "args": [
+            0
+          ],
+          "expect": "zero"
+        },
+        {
+          "args": [
+            13
+          ],
+          "expect": "thirteen"
+        },
+        {
+          "args": [
+            21
+          ],
+          "expect": "twenty-one"
+        },
+        {
+          "args": [
+            100
+          ],
+          "expect": "one hundred"
+        },
+        {
+          "args": [
+            101
+          ],
+          "expect": "one hundred one"
+        },
+        {
+          "args": [
+            1000
+          ],
+          "expect": "one thousand"
+        },
+        {
+          "args": [
+            1001
+          ],
+          "expect": "one thousand one"
+        },
+        {
+          "args": [
+            12345
+          ],
+          "expect": "twelve thousand three hundred forty-five"
+        },
+        {
+          "args": [
+            999999
+          ],
+          "expect": "nine hundred ninety-nine thousand nine hundred ninety-nine"
+        }
+      ]
+    },
+    {
+      "id": "matchGlob",
+      "export": "matchGlob",
+      "category": "string",
+      "requirements": "matchGlob(pattern, text) returns true if the WHOLE text matches the glob pattern. '*' matches any sequence of characters (including none), '?' matches exactly one character, and every other character - including '.', '[' and ']' - matches itself literally.",
+      "tests": [
+        {
+          "args": [
+            "*.js",
+            "app.js"
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "a?c",
+            "abc"
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "a*c*e",
+            "abcde"
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "*",
+            ""
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "a?",
+            "a"
+          ],
+          "expect": false
+        },
+        {
+          "args": [
+            "file.*.ts",
+            "file.test.ts"
+          ],
+          "expect": true
+        },
+        {
+          "args": [
+            "a.c",
+            "abc"
+          ],
+          "expect": false
+        },
+        {
+          "args": [
+            "[a]",
+            "a"
+          ],
+          "expect": false
+        },
+        {
+          "args": [
+            "*.js",
+            "app.jsx"
+          ],
+          "expect": false
+        }
+      ]
+    }
+  ]
+}

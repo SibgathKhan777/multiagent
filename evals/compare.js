@@ -11,6 +11,15 @@ const fs = require('fs');
 
 // metric → direction. 'up' = higher is better, 'down' = lower is better. gate=false → report only.
 const METRICS = {
+  // codegen suite
+  taskSuccessRate:          { dir: 'up', gate: true },
+  firstAttemptSuccessRate:  { dir: 'up', gate: true },
+  retryRecoveryRate:        { dir: 'up', gate: true },
+  testCasePassRate:         { dir: 'up', gate: true },
+  structuredOutputValidity: { dir: 'up', gate: true },
+  providerErrorRate:        { dir: 'down', gate: true },
+  totalEstimatedCostUsd:    { dir: 'down', gate: false },
+  // pipeline suite
   decompositionRecall:    { dir: 'up', gate: true },
   decompositionCleanRate: { dir: 'up', gate: true },
   firstPassValidatorRate: { dir: 'up', gate: true },
@@ -28,8 +37,12 @@ const METRICS = {
 
 function compare(base, cand, tolerance = 0.02) {
   const problems = [];
-  if (base.datasetHash !== cand.datasetHash) problems.push(`dataset differs (${base.datasetHash} vs ${cand.datasetHash}) — results are not comparable`);
-  if (base.provider !== cand.provider) problems.push(`provider differs (${base.provider} vs ${cand.provider}) — results are not comparable`);
+  const meta = (r) => ({ dataset: r.datasetHash ?? r.config?.datasetHash, provider: r.provider ?? r.config?.provider });
+  const [bm, cm] = [meta(base), meta(cand)];
+  if (bm.dataset !== cm.dataset) problems.push(`dataset differs (${bm.dataset} vs ${cm.dataset}) — results are not comparable`);
+  if (base.suite && cand.suite && base.suite !== cand.suite) problems.push(`suite differs (${base.suite} vs ${cand.suite}) — results are not comparable`);
+  if (base.mode && cand.mode && base.mode !== cand.mode) problems.push(`mode differs (${base.mode} vs ${cand.mode}) — mock and live results are never comparable`);
+  if (bm.provider !== cm.provider) problems.push(`provider differs (${bm.provider} vs ${cm.provider}) — results are not comparable`);
 
   const rows = [];
   const regressions = [];

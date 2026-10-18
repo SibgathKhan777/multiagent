@@ -63,6 +63,10 @@ async function main() {
   }
 
   const report = {
+    schemaVersion: 1,
+    suite: 'pipeline',
+    mode: 'live',
+    config: { provider, models: modelsConfig[provider]?.models || null, sandbox, datasetHash: crypto.createHash('sha256').update(raw).digest('hex').slice(0, 12) },
     label,
     createdAt: new Date().toISOString(),
     provider,
