@@ -161,6 +161,7 @@ Copy `.env.example`. The settings that matter most:
 | `EXEC_INSTALL_TIMEOUT_MS/TEST_TIMEOUT_MS/STARTUP_TIMEOUT_MS` | 120s / 90s / 10s | Phase timeouts |
 | `EXEC_MAX_REPAIR_ROUNDS`, `EXEC_REQUIRE_STARTUP` | 2, off | Repair budget; make a healthy startup mandatory |
 | `VALIDATOR_RUNTIME` | docker | `off` disables the runtime check (it never falls back to the host) |
+| `EXEC_SANDBOX` | on | `off` disables sandboxed execution (steps report `skipped`; verdict can't be `verified`) |
 | `MCP_ENABLED`, `MCP_ALLOWED_TOOLS`, `MCP_WORKSPACE`, `MCP_REQUIRE_APPROVAL` | off | See [MCP](#mcp) |
 | `LANGFUSE_PUBLIC_KEY/SECRET_KEY/BASEURL`, `TRACE_FILE` | unset, `logs/traces.jsonl` | See [Observability](#observability) |
 
@@ -255,7 +256,7 @@ Details and the framework decision: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 ## Tests & CI
 
 ```bash
-npm test      # 270 tests across 19 suites; no MongoDB, Redis, Docker or API key required
+npm test      # 271 tests across 19 suites; no MongoDB, Redis, Docker or API key required
 ```
 
 `.github/workflows/ci.yml` runs on pull requests: `npm ci`, the test suite (Node 18 and 20), the mock codegen eval + result-schema validation, a secret scan and `npm audit --omit=dev --audit-level=high`. **The workflow has not run yet** (it has only been validated locally as YAML and by running each step by hand); don't treat CI as passing until a run confirms it. No linter is configured.

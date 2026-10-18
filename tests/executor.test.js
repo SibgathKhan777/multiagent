@@ -225,3 +225,16 @@ describe('executor: startup and health check', () => {
     expect(parseStartupResult('')).toBeNull();
   });
 });
+
+describe('executor: EXEC_SANDBOX=off', () => {
+  test('skips without touching Docker or the filesystem', async () => {
+    process.env.EXEC_SANDBOX = 'off';
+    try {
+      const runner = jest.fn();
+      const r = await execute({ files, runner });
+      expect(r).toMatchObject({ success: false, skipped: true, projectDir: null });
+      expect(r.errors[0]).toMatch(/EXEC_SANDBOX=off/);
+      expect(runner).not.toHaveBeenCalled();
+    } finally { delete process.env.EXEC_SANDBOX; }
+  });
+});

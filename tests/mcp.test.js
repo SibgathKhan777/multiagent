@@ -7,6 +7,10 @@ const { parseAllowed, DEFAULT_ALLOWED } = require('../src/mcp/server');
 
 jest.setTimeout(30000);
 
+// Keep these tests independent of whether the machine has Docker (CI runners do, laptops may not)
+beforeAll(() => { process.env.VALIDATOR_RUNTIME = 'off'; process.env.EXEC_SANDBOX = 'off'; });
+afterAll(() => { delete process.env.VALIDATOR_RUNTIME; delete process.env.EXEC_SANDBOX; });
+
 const GOOD = "'use strict';\n// adds numbers\nfunction add(a, b) {\n  if (typeof a !== 'number' || typeof b !== 'number') throw new Error('numbers required');\n  return a + b;\n}\nmodule.exports = { add };\n";
 
 describe('MCP tools (in-process)', () => {
@@ -137,9 +141,8 @@ describe('toolbox routing', () => {
     expect(r.passed).toBe(true);
   });
 
-  test('MCP_ENABLED=true routes sandboxed tests through run_unit_tests with host approval (Docker unreachable → skipped)', async () => {
-    const saved = process.env.DOCKER_HOST;
-    process.env.DOCKER_HOST = 'unix:///nonexistent-docker.sock';
+  test('MCP_ENABLED=true routes sandboxed tests through run_unit_tests with host approval (sandbox disabled → skipped)', async () => {
+    process.env.EXEC_SANDBOX = 'off';
     process.env.MCP_ENABLED = 'true';
     const toolbox = require('../src/mcp/toolbox');
     try {
@@ -147,7 +150,7 @@ describe('toolbox routing', () => {
       expect(r).toMatchObject({ success: false, skipped: true });
     } finally {
       await toolbox.close();
-      if (saved === undefined) delete process.env.DOCKER_HOST; else process.env.DOCKER_HOST = saved;
+      delete process.env.EXEC_SANDBOX;
     }
   });
 });

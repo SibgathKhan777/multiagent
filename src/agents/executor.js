@@ -232,7 +232,13 @@ async function execute({ files, runner = runProcess } = {}) {
     errors: [],
   };
 
-  // ─── 0. Sandbox must exist, otherwise do nothing ──────────────────────
+  // ─── 0. Sandbox must exist (and be enabled), otherwise do nothing ──────
+  if (process.env.EXEC_SANDBOX === 'off') {
+    result.skipped = true;
+    result.errors.push('Sandboxed execution is disabled (EXEC_SANDBOX=off) — generated code was NOT executed');
+    result.logs.push('⚠️ Execution skipped: disabled by configuration');
+    return result;
+  }
   if (!(await dockerAvailable(runner))) {
     result.skipped = true;
     result.errors.push('Docker is not available — generated code was NOT executed (refusing to run it on the host)');

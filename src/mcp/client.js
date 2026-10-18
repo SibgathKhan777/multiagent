@@ -50,7 +50,7 @@ class McpToolClient {
     if (this.allowedTools) env.MCP_ALLOWED_TOOLS = this.allowedTools.join(',');
     if (this.workspace) env.MCP_WORKSPACE = this.workspace;
     env.MCP_APPROVAL_SECRET = this.approvalSecret;
-    for (const key of ['DOCKER_HOST', 'EXEC_IMAGE', 'EXEC_KEEP_WORKDIR', 'LOG_LEVEL', 'TMPDIR', 'MONGODB_URI', 'VALIDATOR_RUNTIME']) {
+    for (const key of ['DOCKER_HOST', 'EXEC_IMAGE', 'EXEC_KEEP_WORKDIR', 'LOG_LEVEL', 'TMPDIR', 'MONGODB_URI', 'VALIDATOR_RUNTIME', 'EXEC_SANDBOX']) {
       if (process.env[key]) env[key] = process.env[key];
     }
 

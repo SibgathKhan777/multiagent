@@ -196,10 +196,9 @@ describe('taskTools.runProjectTests (injected sandbox)', () => {
 });
 
 describe('MCP client approval gate (real stdio server)', () => {
-  const dead = 'unix:///nonexistent-docker.sock';
-  let saved;
-  beforeAll(() => { saved = process.env.DOCKER_HOST; process.env.DOCKER_HOST = dead; });
-  afterAll(() => { if (saved === undefined) delete process.env.DOCKER_HOST; else process.env.DOCKER_HOST = saved; });
+  // Make the sandbox deterministic everywhere: CI runners have Docker, laptops may not
+  beforeAll(() => { process.env.EXEC_SANDBOX = 'off'; });
+  afterAll(() => { delete process.env.EXEC_SANDBOX; });
   const files = [{ path: 'package.json', content: '{}' }];
 
   test('no approver → sensitive call refused client-side', async () => {
@@ -218,11 +217,12 @@ describe('MCP client approval gate (real stdio server)', () => {
     } finally { await c.close(); }
   });
 
-  test('approver says yes → executes (Docker unreachable here, so it reports skipped, not success)', async () => {
+  test('approver says yes → executes (sandbox disabled, so it reports skipped, not success)', async () => {
     const c = await new McpToolClient({ allowedTools: ['run_unit_tests'], approver: async () => true }).connect();
     try {
       const r = await c.callTool('run_unit_tests', { files }, { timeoutMs: 30000 });
       expect(r).toMatchObject({ success: false, skipped: true });
+      expect(r.errors[0]).toMatch(/EXEC_SANDBOX=off/); // proves the setting reached the server process
     } finally { await c.close(); }
   });
 
