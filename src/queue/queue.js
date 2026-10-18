@@ -3,6 +3,7 @@ const IORedis = require('ioredis');
 const config = require('../../config/default');
 const worker = require('../agents/worker');
 const logger = require('../utils/logger').forAgent('Queue');
+const tracer = require('../observability/tracer');
 
 let connection = null;
 let taskQueue = null;
@@ -34,11 +35,12 @@ function initQueue() {
   queueWorker = new BullWorker(
     config.queue.name,
     async (job) => {
-      const { prompt, model, moduleContext } = job.data;
+      const { prompt, model, moduleContext, traceContext } = job.data;
       logger.info(`Processing job: ${job.id} — module: ${moduleContext.name}`, { jobId: job.id });
 
       try {
-        const result = await worker.executeWork({ prompt, model, moduleContext });
+        // BullMQ runs this outside the controller's async context — re-enter the trace explicitly
+        const result = await tracer.runInContext(traceContext, () => worker.executeWork({ prompt, model, moduleContext }));
         logger.info(`Job completed: ${job.id}`, { jobId: job.id, codeLength: result.code.length });
         return result;
       } catch (err) {

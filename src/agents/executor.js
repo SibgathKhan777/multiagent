@@ -6,6 +6,7 @@ const path = require('path');
 const config = require('../../config/default');
 const { writeFilesSafely, UnsafePathError } = require('../utils/safePath');
 const logger = require('../utils/logger').forAgent('Executor');
+const tracer = require('../observability/tracer');
 
 /**
  * Executor Agent — Sandboxed Test Execution
@@ -224,10 +225,14 @@ async function execute({ files, runner = runProcess } = {}) {
 
     const runPhase = async (label, { network, readOnlyProject, command, timeoutMs }) => {
       const name = `ai-factory-${label}-${crypto.randomBytes(6).toString('hex')}`;
-      const res = await runner('docker', buildDockerArgs({ name, projectDir, network, readOnlyProject, command }), {
-        timeoutMs,
-        maxOutputBytes: ex.maxOutputBytes,
-        onTimeout: () => runner('docker', ['rm', '-f', name], { timeoutMs: 15000, maxOutputBytes: 4096 }),
+      const res = await tracer.span(`sandbox.${label}`, { metadata: { network, timeoutMs } }, async (h) => {
+        const r = await runner('docker', buildDockerArgs({ name, projectDir, network, readOnlyProject, command }), {
+          timeoutMs,
+          maxOutputBytes: ex.maxOutputBytes,
+          onTimeout: () => runner('docker', ['rm', '-f', name], { timeoutMs: 15000, maxOutputBytes: 4096 }),
+        });
+        h.setMetadata({ exitCode: r.code, timedOut: r.timedOut });
+        return r;
       });
       result.phases[label] = {
         exitCode: res.code, timedOut: res.timedOut, durationMs: res.durationMs,

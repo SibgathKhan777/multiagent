@@ -13,6 +13,7 @@ const Output = require('../models/Output');
 const FeedbackLog = require('../models/FeedbackLog');
 const config = require('../../config/default');
 const logger = require('../utils/logger').forAgent('Controller');
+const tracer = require('../observability/tracer');
 
 // In-memory store for pipeline state machines (keyed by taskId)
 const pipelines = new Map();
@@ -52,7 +53,10 @@ async function startPipeline(idea) {
   });
 
   // Run pipeline async (don't await — return immediately)
-  runPipeline(taskId, idea, pipeline).catch((err) => {
+  tracer.trace('pipeline', { id: taskId, input: { idea } }, async (h) => {
+    await runPipeline(taskId, idea, pipeline);
+    h.setOutput({ stage: pipeline.stage });
+  }).catch((err) => {
     logger.error(`Pipeline failed: ${err.message}`, { taskId, error: err.stack });
   });
 
@@ -72,7 +76,11 @@ async function runPipeline(taskId, idea, pipeline) {
     await Task.findOneAndUpdate({ taskId }, { status: 'decomposing' });
     logger.info('Stage 1: Decomposing idea', { taskId });
 
-    const modules = await decompose({ idea });
+    const modules = await tracer.span('decompose', { input: { idea } }, async (h) => {
+      const mods = await decompose({ idea });
+      h.setOutput(mods.map((m) => m.name));
+      return mods;
+    });
 
     // Save modules to DB
     const moduleDocs = [];
@@ -109,10 +117,14 @@ async function runPipeline(taskId, idea, pipeline) {
         siblingModules.push({ name, exports: info.exports, filePath: info.filePath });
       }
 
-      const { prompt, model } = await generatePrompt({
-        module: { name: mod.name, description: mod.description, type: mod.type, dependencies: mod.dependencies },
-        context: idea,
-        siblingModules,
+      const { prompt, model } = await tracer.span(`prompt:${mod.name}`, { metadata: { type: mod.type } }, async (h) => {
+        const out = await generatePrompt({
+          module: { name: mod.name, description: mod.description, type: mod.type, dependencies: mod.dependencies },
+          context: idea,
+          siblingModules,
+        });
+        h.setOutput({ model: out.model, promptChars: out.prompt.length });
+        return out;
       });
 
       await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, {
@@ -150,7 +162,11 @@ async function runPipeline(taskId, idea, pipeline) {
     // Reload modules with latest outputs
     const completedModules = await ModuleModel.find({ taskId, status: 'completed' }).lean();
 
-    const result = await integrate({ modules: completedModules });
+    const result = await tracer.span('integrate', { metadata: { modules: completedModules.length } }, async (h) => {
+      const out = await integrate({ modules: completedModules });
+      h.setOutput({ files: out.files.length });
+      return out;
+    });
 
     // ─── Stage 5: Sandboxed test execution + repair loop ─────────
     logger.info('Stage 5: Running generated tests in sandbox', { taskId });
@@ -195,7 +211,11 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
   for (let round = 0; ; round++) {
     let execution;
     try {
-      execution = await execute({ files: current.files });
+      execution = await tracer.span('sandbox.execute', { metadata: { round } }, async (h) => {
+        const ex = await execute({ files: current.files });
+        h.setOutput({ success: ex.success, skipped: ex.skipped, tests: ex.tests && { passed: ex.tests.passed, total: ex.tests.total }, errors: ex.errors });
+        return ex;
+      });
     } catch (err) {
       execution = { success: false, skipped: false, errors: [err.message], logs: [], tests: { total: 0, passed: 0, failed: 0, failures: [] } };
     }
@@ -229,12 +249,12 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
 
     // Feed the real failures back to the coder for each blamed module
     for (const mod of targets) {
-      const feedback = await generateExecutionFeedback({
+      const feedback = await tracer.span(`exec-feedback:${mod.name}`, { metadata: { round } }, async () => generateExecutionFeedback({
         failures: blame.get(mod.name),
         originalPrompt: mod.prompt,
         code: completedOutputs.get(mod.name)?.code,
         iteration: round,
-      });
+      }));
       await FeedbackLog.create({
         feedbackId: uuid(),
         moduleId: mod.moduleId,
@@ -249,14 +269,19 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
     }
 
     const completedModules = await ModuleModel.find({ taskId, status: 'completed' }).lean();
-    current = await integrate({ modules: completedModules });
+    current = await tracer.span('integrate', { metadata: { round, repair: true } }, () => integrate({ modules: completedModules }));
   }
 }
 
 /**
  * Process a single module through the build → validate → (feedback) loop.
  */
-async function processModule(taskId, mod, pipeline, iteration, completedOutputs) {
+function processModule(taskId, mod, pipeline, iteration, completedOutputs) {
+  return tracer.span(`module:${mod.name}`, { metadata: { iteration } }, () =>
+    processModuleImpl(taskId, mod, pipeline, iteration, completedOutputs));
+}
+
+async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutputs) {
   const maxIterations = config.pipeline.maxIterations;
 
   logger.info(`Building module: "${mod.name}" (iteration ${iteration})`, {
@@ -273,6 +298,7 @@ async function processModule(taskId, mod, pipeline, iteration, completedOutputs)
       {
         prompt: mod.prompt,
         model: mod.assignedModel,
+        traceContext: tracer.currentContext(),
         moduleContext: {
           taskId,
           moduleId: mod.moduleId,
@@ -313,10 +339,10 @@ async function processModule(taskId, mod, pipeline, iteration, completedOutputs)
   // ─── Validate ──────────────────────────────────────────────────
   logger.info(`Validating module: "${mod.name}"`, { taskId, moduleId: mod.moduleId, iteration });
 
-  const validation = await validate({
-    code: result.code,
-    moduleName: mod.name,
-    requirements: mod.description,
+  const validation = await tracer.span('validate', { metadata: { iteration } }, async (h) => {
+    const v = await validate({ code: result.code, moduleName: mod.name, requirements: mod.description });
+    h.setOutput({ score: v.score, passed: v.passed, issues: v.issues.map((i) => i.message) });
+    return v;
   });
 
   await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, {
@@ -362,12 +388,12 @@ async function processModule(taskId, mod, pipeline, iteration, completedOutputs)
     taskId, moduleId: mod.moduleId, iteration,
   });
 
-  const feedback = await generateFeedback({
+  const feedback = await tracer.span('feedback', { metadata: { iteration } }, () => generateFeedback({
     issues: validation.issues,
     originalPrompt: mod.prompt,
     code: result.code,
     iteration,
-  });
+  }));
 
   await FeedbackLog.create({
     feedbackId: uuid(),

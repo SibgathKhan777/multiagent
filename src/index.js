@@ -10,6 +10,7 @@ const { initQueue, closeQueue } = require('./queue/queue');
 const memory = require('./memory/memory');
 const routes = require('./api/routes');
 const progressEmitter = require('./realtime/progressEmitter');
+const tracer = require('./observability/tracer');
 const logger = require('./utils/logger').forAgent('App');
 
 const app = express();
@@ -96,6 +97,7 @@ async function start() {
     logger.info('MongoDB connected');
 
     logger.info('Initializing queue system...');
+    logger.info(`Tracing sinks: ${tracer.initFromEnv().join(', ') || 'none'}`);
     initQueue();
     logger.info('Queue system ready');
 
@@ -138,6 +140,7 @@ async function start() {
       io.close();
       server.close();
       await closeQueue();
+      await tracer.shutdown(); // flush traces
       await mongoose.connection.close();
       logger.info('Shutdown complete');
       process.exit(0);
