@@ -8,7 +8,11 @@
     "dev": "node --watch src/index.js",
     "test": "jest --verbose --forceExit",
     "eval": "node evals/run.js",
-    "eval:compare": "node evals/compare.js"
+    "eval:compare": "node evals/compare.js",
+    "eval:codegen": "node evals/run-codegen.js",
+    "eval:codegen:mock": "node evals/run-codegen.js --mode mock --behavior mixed --label codegen-mock",
+    "eval:tools": "node evals/run-tools.js",
+    "eval:validate": "node evals/validate-results.js"
   },
   "keywords": [
     "ai",
@@ -26,12 +30,17 @@
     "express": "^4.18.0",
     "groq-sdk": "^1.1.1",
     "ioredis": "^5.3.0",
-    "jest": "^30.3.0",
     "langfuse": "^3.39.2",
     "mongoose": "^8.0.0",
     "socket.io": "^4.8.3",
     "uuid": "^9.0.0",
     "winston": "^3.11.0",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  },
+  "engines": {
+    "node": ">=18.14"
   }
 }
