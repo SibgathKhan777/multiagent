@@ -500,11 +500,15 @@ function generateTestFile(mod, filePath) {
     test += `    expect(moduleExports).toBeDefined();\n`;
     test += `  });\n\n`;
 
-    test += `  test('should export expected interface', () => {\n`;
-    for (const exp of exports.slice(0, 8)) {
-      test += `    expect(moduleExports.${exp}).toBeDefined();\n`;
+    // Only assert named properties for `module.exports = { a, b }`. For
+    // `module.exports = thing` the extracted name is a local identifier, not a property.
+    if (/module\.exports\s*=\s*\{/.test(code)) {
+      test += `  test('should export expected interface', () => {\n`;
+      for (const exp of exports.slice(0, 8)) {
+        test += `    expect(moduleExports.${exp}).toBeDefined();\n`;
+      }
+      test += `  });\n`;
     }
-    test += `  });\n`;
     test += `});\n`;
   } else {
     test += `describe('${mod.name}', () => {\n`;
@@ -720,6 +724,6 @@ async function integrate({ modules }) {
   };
 }
 
-module.exports = { integrate };
+module.exports = { integrate, getFilePath, generateTestFile };
 
 

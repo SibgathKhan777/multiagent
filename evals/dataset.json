@@ -1,0 +1,612 @@
+{
+ "version": 1,
+ "note": "Labels are hand-written by the project author; review before treating as ground truth. expect/forbid use decomposer module keys.",
+ "tasks": [
+  {
+   "id": "t01",
+   "idea": "food delivery app with live order tracking and online payment",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time",
+    "payment"
+   ],
+   "forbid": [],
+   "mustMention": [
+    "order",
+    "payment",
+    "status"
+   ]
+  },
+  {
+   "id": "t02",
+   "idea": "e-commerce store with product search, image upload and checkout",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "payment",
+    "search",
+    "upload"
+   ],
+   "forbid": [],
+   "mustMention": [
+    "product",
+    "cart",
+    "order"
+   ]
+  },
+  {
+   "id": "t03",
+   "idea": "social media platform with posts, likes, comments and a live feed",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time",
+    "upload"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "post",
+    "comment",
+    "like"
+   ]
+  },
+  {
+   "id": "t04",
+   "idea": "chat application with group rooms and message notifications",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time",
+    "notification"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "message",
+    "room"
+   ]
+  },
+  {
+   "id": "t05",
+   "idea": "blog platform with markdown posts, tags and full-text search",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "search"
+   ],
+   "forbid": [
+    "payment",
+    "real-time"
+   ],
+   "mustMention": [
+    "post",
+    "tag"
+   ]
+  },
+  {
+   "id": "t06",
+   "idea": "task management tool with assignees, due-date alerts and live updates",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "notification",
+    "real-time"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "task",
+    "assign",
+    "due"
+   ]
+  },
+  {
+   "id": "t07",
+   "idea": "hotel booking system with online payment and confirmation emails",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "payment",
+    "notification"
+   ],
+   "forbid": [
+    "upload"
+   ],
+   "mustMention": [
+    "booking",
+    "room",
+    "payment"
+   ]
+  },
+  {
+   "id": "t08",
+   "idea": "online course platform where instructors upload video lessons and students pay to enroll",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "payment",
+    "upload"
+   ],
+   "forbid": [
+    "real-time"
+   ],
+   "mustMention": [
+    "course",
+    "lesson",
+    "enroll"
+   ]
+  },
+  {
+   "id": "t09",
+   "idea": "ride sharing backend with driver matching and live location tracking",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time"
+   ],
+   "forbid": [
+    "upload"
+   ],
+   "mustMention": [
+    "ride",
+    "driver",
+    "location"
+   ]
+  },
+  {
+   "id": "t10",
+   "idea": "inventory management system for a warehouse with low-stock email alerts",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "notification"
+   ],
+   "forbid": [
+    "payment",
+    "real-time"
+   ],
+   "mustMention": [
+    "inventory",
+    "stock"
+   ]
+  },
+  {
+   "id": "t11",
+   "idea": "restaurant table reservation service with SMS reminders",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "notification"
+   ],
+   "forbid": [
+    "payment",
+    "upload"
+   ],
+   "mustMention": [
+    "reservation",
+    "table"
+   ]
+  },
+  {
+   "id": "t12",
+   "idea": "job board where companies post jobs and candidates search and filter listings",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "search"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "job",
+    "candidate",
+    "apply"
+   ]
+  },
+  {
+   "id": "t13",
+   "idea": "personal finance tracker with expense categories and monthly reports",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication"
+   ],
+   "forbid": [
+    "real-time",
+    "upload"
+   ],
+   "mustMention": [
+    "expense",
+    "category",
+    "report"
+   ]
+  },
+  {
+   "id": "t14",
+   "idea": "event ticketing platform with payment and QR ticket delivery by email",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "payment",
+    "notification"
+   ],
+   "forbid": [],
+   "mustMention": [
+    "event",
+    "ticket"
+   ]
+  },
+  {
+   "id": "t15",
+   "idea": "fitness tracker API storing workouts and sending weekly progress notifications",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "notification"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "workout",
+    "progress"
+   ]
+  },
+  {
+   "id": "t16",
+   "idea": "real-time collaborative document editor with live cursors",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "document",
+    "edit"
+   ]
+  },
+  {
+   "id": "t17",
+   "idea": "library management system to borrow, return and search books",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "search"
+   ],
+   "forbid": [
+    "payment",
+    "real-time"
+   ],
+   "mustMention": [
+    "book",
+    "borrow",
+    "return"
+   ]
+  },
+  {
+   "id": "t18",
+   "idea": "photo sharing app with image upload, albums and search by tag",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "upload",
+    "search"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "photo",
+    "album",
+    "tag"
+   ]
+  },
+  {
+   "id": "t19",
+   "idea": "subscription billing service with invoices, refunds and payment webhooks",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "payment"
+   ],
+   "forbid": [
+    "real-time",
+    "upload"
+   ],
+   "mustMention": [
+    "subscription",
+    "invoice",
+    "refund"
+   ]
+  },
+  {
+   "id": "t20",
+   "idea": "customer support ticketing system with live chat and email alerts",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time",
+    "notification"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "ticket",
+    "agent"
+   ]
+  },
+  {
+   "id": "t21",
+   "idea": "polling and voting app with live result updates",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time"
+   ],
+   "forbid": [
+    "payment",
+    "upload"
+   ],
+   "mustMention": [
+    "poll",
+    "vote"
+   ]
+  },
+  {
+   "id": "t22",
+   "idea": "recipe sharing site with photo upload, ratings and ingredient search",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "upload",
+    "search"
+   ],
+   "forbid": [
+    "payment"
+   ],
+   "mustMention": [
+    "recipe",
+    "rating",
+    "ingredient"
+   ]
+  },
+  {
+   "id": "t23",
+   "idea": "clinic appointment scheduler with patient reminders and doctor availability",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "notification"
+   ],
+   "forbid": [
+    "payment",
+    "upload"
+   ],
+   "mustMention": [
+    "appointment",
+    "doctor",
+    "patient"
+   ]
+  },
+  {
+   "id": "t24",
+   "idea": "cached product catalog API that must be fast and scalable under heavy read traffic",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "cache",
+    "search"
+   ],
+   "forbid": [
+    "real-time"
+   ],
+   "mustMention": [
+    "product",
+    "cache"
+   ]
+  },
+  {
+   "id": "t25",
+   "idea": "URL shortener with click analytics and caching of hot links",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "cache"
+   ],
+   "forbid": [
+    "payment",
+    "upload",
+    "real-time"
+   ],
+   "mustMention": [
+    "url",
+    "click"
+   ]
+  },
+  {
+   "id": "t26",
+   "idea": "public currency converter API with cached exchange rates",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "cache"
+   ],
+   "forbid": [
+    "payment",
+    "upload",
+    "real-time",
+    "authentication"
+   ],
+   "mustMention": [
+    "currency",
+    "rate"
+   ]
+  },
+  {
+   "id": "t27",
+   "idea": "weather forecast aggregation API with caching and email alerts for severe weather",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "cache",
+    "notification"
+   ],
+   "forbid": [
+    "payment",
+    "upload",
+    "authentication"
+   ],
+   "mustMention": [
+    "weather",
+    "forecast"
+   ]
+  },
+  {
+   "id": "t28",
+   "idea": "multiplayer game lobby service with live matchmaking",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "real-time"
+   ],
+   "forbid": [
+    "payment",
+    "upload"
+   ],
+   "mustMention": [
+    "lobby",
+    "match"
+   ]
+  },
+  {
+   "id": "t29",
+   "idea": "freelance marketplace where clients post projects, freelancers bid and payments are escrowed",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "payment",
+    "search"
+   ],
+   "forbid": [],
+   "mustMention": [
+    "project",
+    "bid",
+    "escrow"
+   ]
+  },
+  {
+   "id": "t30",
+   "idea": "newsletter service with subscriber management and scheduled email delivery",
+   "expect": [
+    "config",
+    "database",
+    "api",
+    "middleware",
+    "authentication",
+    "notification"
+   ],
+   "forbid": [
+    "payment",
+    "real-time"
+   ],
+   "mustMention": [
+    "subscriber",
+    "newsletter"
+   ]
+  }
+ ]
+}

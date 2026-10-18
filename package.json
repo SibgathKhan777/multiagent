@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "jest --verbose --forceExit"
+    "test": "jest --verbose --forceExit",
+    "eval": "node evals/run.js",
+    "eval:compare": "node evals/compare.js"
   },
   "keywords": [
     "ai",
