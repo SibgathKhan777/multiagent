@@ -86,6 +86,7 @@ async function main() {
     createdAt: new Date().toISOString(),
     config: {
       provider, models, maxAttempts, grading: gradeMode,
+      llm: { maxAttempts: parseInt(process.env.LLM_MAX_ATTEMPTS, 10) || 3, timeoutMs: parseInt(process.env.LLM_TIMEOUT_MS, 10) || 60000 }, // per-request retry policy of the worker
       datasetHash: crypto.createHash('sha256').update(raw).digest('hex').slice(0, 12),
       taskIds: tasks.map((t) => t.id), // requested; see denominators.tasks for how many actually ran
       aborted,

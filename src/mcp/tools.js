@@ -47,8 +47,10 @@ async function runUnitTests({ files }) {
   };
 }
 
-async function listProjectFiles({ dir = '.' }, { workspace }) {
-  const start = dir === '.' ? requireWorkspace(workspace) : resolveInWorkspace(workspace, dir);
+async function listProjectFiles({ dir } = {}, { workspace }) {
+  // models routinely send "" or "." for "no value": both mean the workspace root
+  const atRoot = dir === undefined || dir === null || dir === '' || dir === '.';
+  const start = atRoot ? requireWorkspace(workspace) : resolveInWorkspace(workspace, dir);
   const root = requireWorkspace(workspace);
   const out = [];
   const walk = (current) => {

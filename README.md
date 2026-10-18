@@ -84,7 +84,7 @@ stateDiagram-v2
 | Tracing (JSONL always; Langfuse optional) | **Implemented**; Langfuse export verified only against an unreachable server and a stub | `src/observability/tracer.js`, `tests/tracer.test.js` |
 | MCP server + client, approval-gated sensitive tools | **Implemented**, tested over stdio and in-memory transport | `src/mcp/`, `tests/mcp*.test.js` |
 | Evals: codegen (executable hidden tests), tool selection, pipeline | **Implemented**; deterministic mock mode in CI | `evals/` |
-| Live-model baseline numbers | **No saved result files** — see [Evals](#evals) | — |
+| Live-model baseline | **Codegen: saved (20/20, one run)**; tool-selection live result not saved (quota) — see [Evals](#evals) | `evals/results/codegen-live-gpt-oss-120b.json` |
 | LangGraph / DeepAgents | **Deliberately not used** — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | — |
 | `python-ai` provider (external FastAPI/LangGraph/CrewAI service described in `DOCS.md`) | **Optional, external, untested here** | `src/services/aiService.js` |
 | Repair-round budget across restarts | **Implemented** (`Task.repairRound`); the sandbox itself is re-run on resume | `tests/controller.test.js` |
@@ -233,13 +233,21 @@ test-case pass rate 59/101 = 0.584 · structured-output validity 16/20 = 0.800
 failure classes: wrong_answer 4, syntax_error 4
 ```
 
-**Live baselines: no saved result files yet.** Observations so far, honestly stated:
+**Live baseline — saved** (`evals/results/codegen-live-gpt-oss-120b.json`; Groq `openai/gpt-oss-120b` for generation, graded in Docker, worker `LLM_MAX_ATTEMPTS=5`, 2 attempts per task, dataset hash `c22b42bfe6e3`):
 
-- A one-off live run of the *original* 14 easy tasks (Groq `openai/gpt-oss-120b`, graded in Docker, ~420 tokens/task) passed **14/14 on the first attempt**. That file was not kept and the dataset has since grown, so treat it as an observation, not a baseline. It also showed the first dataset was too easy to discriminate, so 6 harder tasks (interval merging, version comparison, CSV parsing, topological sort, number spelling, glob matching) were added.
-- The 20-task live run could not complete: Groq's free tier (200k tokens/day) was exhausted. The runner stopped on the non-recoverable quota error after one task instead of grading template output, and wrote a report with `providerErrors: 1` and null rates (which was deleted rather than published).
-- Provider errors are excluded from success denominators and always reported. Mock and live results can never be compared.
+```
+tasks 20 · graded 20 · provider errors 0 · failed first attempt 1 · test cases 101
+task success 20/20 = 1.000 · first attempt 19/20 = 0.950 · retry recovery 1/1 = 1.000
+test-case pass rate 101/101 · structured-output validity 20/20
+avg latency 12.1 s/task · avg tokens 227 in / 639 out · estimated cost: n/a (no prices supplied)
+only retry: matchGlob wrong_answer -> passed after seeing the failing hidden cases
+```
 
-To produce a real baseline once quota is available: `npm run eval:codegen -- --mode live --label codegen-live-<model>`, then commit the generated `evals/results/codegen-live-*.json`.
+Read this honestly: it is **one run, one model, 20 tasks** (non-deterministic sampling), and the dataset is still easy for a model this size — it is a regression baseline and a proof that the live path works, not a ranking. Getting here exposed a provider quirk worth knowing: on Groq, `gpt-oss` intermittently answers in a tool-call shape and the API rejects it with HTTP 400 `tool_use_failed`; the worker now classifies that as a retryable `malformed_generation` (a first run without that fix had 7–8 of 20 tasks lost to it).
+
+Not yet saved: a **live tool-selection** result. Two partial runs showed the model choosing the right tool in most scenarios, sending `dir: ""` for "no value" (which exposed and fixed a server bug) and declining path-escape requests (now scored as acceptable); the final run was cut off by Groq's daily token quota, so no file is published. Provider errors are always excluded from success denominators and reported; mock and live results can never be compared.
+
+To reproduce: `AI_PROVIDER=groq LLM_MAX_ATTEMPTS=5 npm run eval:codegen -- --mode live --label codegen-live-gpt-oss-120b` (needs Docker).
 
 Evals found two real bugs while being built: `extractCode` truncated model output that started with `function …`, and generated "export" tests failed for every `module.exports = x` module — both fixed with regression tests.
 
@@ -256,14 +264,14 @@ Details and the framework decision: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 ## Tests & CI
 
 ```bash
-npm test      # 271 tests across 19 suites; no MongoDB, Redis, Docker or API key required
+npm test      # 277 tests across 19 suites; no MongoDB, Redis, Docker or API key required
 ```
 
 `.github/workflows/ci.yml` runs on pull requests: `npm ci`, the test suite (Node 18 and 20), the mock codegen eval + result-schema validation, a secret scan and `npm audit --omit=dev --audit-level=high`. **The workflow has not run yet** (it has only been validated locally as YAML and by running each step by hand); don't treat CI as passing until a run confirms it. No linter is configured.
 
 ## Known limitations
 
-- No saved live-LLM eval baseline (provider quota); retired default model ids need overriding.
+- Live evals are single runs on a free-tier quota; the live tool-selection result is not saved yet.
 - Generated tests are structural (module loads, exports exist); `verified` means *they and the validator passed*, not that the app is behaviourally correct.
 - Controller/queue/Mongo paths are tested with fakes, not against live MongoDB/Redis.
 - API auth is opt-in and header-only (see above); no LangGraph/DeepAgents (by design, see architecture doc); Python AI service is external.

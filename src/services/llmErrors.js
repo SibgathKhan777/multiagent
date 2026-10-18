@@ -4,6 +4,8 @@
  * LLM provider error handling: classification and bounded retry.
  *
  * kinds:  rate_limit | quota (daily limit; waiting is pointless) | timeout | transient
+ *         | malformed_generation (model emitted a tool-call-shaped/unusable reply; Groq reports this
+ *           as a 400 `tool_use_failed` but it is non-deterministic and a retry usually works)
  *         | auth | config (bad model/endpoint) | bad_request | empty_response | unknown
  * Only rate_limit (short waits), timeout and transient are retried.
  */
@@ -38,12 +40,13 @@ function classifyError(err, { maxRetryWaitMs = 15000 } = {}) {
   else if (status === 429) {
     const daily = /per day|\(TPD\)|\(RPD\)|quota/i.test(msg);
     kind = daily || (retryAfterMs && retryAfterMs > maxRetryWaitMs) ? 'quota' : 'rate_limit';
-  } else if (status === 401 || status === 403) kind = 'auth';
+  } else if (/tool_use_failed|model called a tool/i.test(msg) || err?.code === 'tool_use_failed') kind = 'malformed_generation';
+  else if (status === 401 || status === 403) kind = 'auth';
   else if (status === 404 || /model_not_found|no longer available|does not exist/i.test(msg)) kind = 'config';
   else if (status === 400 || status === 422) kind = 'bad_request';
   else if ((status && status >= 500) || /ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|fetch failed|network/i.test(msg) || /ECONNRESET|ETIMEDOUT/.test(err?.code || '')) kind = 'transient';
 
-  const retryable = ['rate_limit', 'timeout', 'transient', 'empty_response'].includes(kind);
+  const retryable = ['rate_limit', 'timeout', 'transient', 'malformed_generation', 'empty_response'].includes(kind);
   return { kind, retryable, status, retryAfterMs, message: redact(msg).slice(0, 400) };
 }
 

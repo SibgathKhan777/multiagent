@@ -15,6 +15,7 @@ const isDeepSubset = (expected, actual) =>
 function judgeSelection(scenario, choice) {
   const expectedNone = scenario.acceptable.length === 0;
   if (!choice || !choice.tool) {
+    if (scenario.acceptNoCall && !expectedNone) return { correct: true, kind: 'correct_refusal' }; // declining a risky request is fine
     return { correct: expectedNone, kind: expectedNone ? 'correct_no_call' : 'missed_call' };
   }
   if (expectedNone) return { correct: false, kind: 'unnecessary_call' };

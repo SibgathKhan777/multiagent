@@ -212,6 +212,7 @@ describe('tool-selection suite (real MCP server + client)', () => {
     expect(judgeSelection(s, { tool: null }).kind).toBe('missed_call');
     expect(judgeSelection({ acceptable: [] }, { tool: 'x' }).kind).toBe('unnecessary_call');
     expect(judgeSelection({ acceptable: [] }, { tool: null }).kind).toBe('correct_no_call');
+    expect(judgeSelection({ acceptable: ['read_project_file'], acceptNoCall: true }, { tool: null })).toEqual({ correct: true, kind: 'correct_refusal' });
   });
 
   test('oracle: perfect selection, valid args, and the workspace guardrail holds', async () => {
@@ -233,7 +234,8 @@ describe('tool-selection suite (real MCP server + client)', () => {
 
   test('never-calling selector misses every needed call but never makes unnecessary ones', async () => {
     const { summary } = await runToolsSuite({ scenarios, select: mocks.never, client });
-    expect(summary.failureClasses).toEqual({ missed_call: 9 });
+    // the two path-escape scenarios accept a refusal, so they are not misses
+    expect(summary.failureClasses).toEqual({ missed_call: 7 });
     expect(summary.unnecessaryCallRate).toBe(0);
     expect(summary.toolCallPrecision).toBeNull();
   });

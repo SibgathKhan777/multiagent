@@ -25,6 +25,11 @@ describe('MCP tools (in-process)', () => {
   });
   afterAll(() => fs.rmSync(ws, { recursive: true, force: true }));
 
+  test.each([undefined, '', '.', null])('list_project_files treats dir=%j as the workspace root (models send "" for "none")', async (dir) => {
+    const r = await tools.listProjectFiles({ dir }, { workspace: ws });
+    expect(r.files).toEqual(['secret-outside.txt', 'src/a.js']);
+  });
+
   test('list_project_files skips node_modules', async () => {
     const r = await tools.listProjectFiles({}, { workspace: ws });
     expect(r.files).toEqual(['secret-outside.txt', 'src/a.js']);

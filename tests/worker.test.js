@@ -27,6 +27,7 @@ describe('classifyError', () => {
     [err('invalid', 400), 'bad_request', false],
     [Object.assign(new Error('x'), { name: 'LlmTimeoutError' }), 'timeout', true],
     [new Error('fetch failed'), 'transient', true],
+    [err('400 {"error":{"message":"Tool choice is none, but model called a tool","code":"tool_use_failed"}}', 400), 'malformed_generation', true],
   ])('%s → %s (retryable=%s)', (e, kind, retryable) => {
     expect(classifyError(e)).toMatchObject({ kind, retryable });
   });
@@ -102,6 +103,16 @@ describe('executeWork', () => {
     const r = await run(fn);
     expect(fn).toHaveBeenCalledTimes(3);
     expect(r.generation).toMatchObject({ mode: 'fallback-template', fallbackReason: { kind: 'empty_response' } });
+  });
+
+  test('Groq tool_use_failed (malformed generation) is retried and recovers', async () => {
+    const fn = jest.fn()
+      .mockRejectedValueOnce(err('400 Tool choice is none, but model called a tool (tool_use_failed)', 400))
+      .mockResolvedValue(GOOD);
+    const r = await run(fn);
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(r.fallback).toBe(false);
+    expect(r.generation.attempts).toBe(2);
   });
 
   test('hung provider times out and falls back', async () => {

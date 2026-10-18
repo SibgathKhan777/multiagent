@@ -2,17 +2,137 @@
   "version": 1,
   "note": "Tool-selection scenarios against the MCP tools exposed by default (validate_code, list_project_files, read_project_file). run_unit_tests is intentionally NOT exposed, so requests for it must not produce a tool call. Hand-written.",
   "scenarios": [
-    { "id": "list-all", "request": "List all the files in the project.", "acceptable": ["list_project_files"], "mockArgs": {} },
-    { "id": "list-dir", "request": "Show me the files inside the src folder.", "acceptable": ["list_project_files"], "mockArgs": { "dir": "src" }, "expectArgs": { "dir": "src" } },
-    { "id": "read-readme", "request": "Read the file README.md and tell me what it says.", "acceptable": ["read_project_file"], "mockArgs": { "path": "README.md" }, "expectArgs": { "path": "README.md" } },
-    { "id": "read-app", "request": "What is in src/app.js?", "acceptable": ["read_project_file"], "mockArgs": { "path": "src/app.js" }, "expectArgs": { "path": "src/app.js" } },
-    { "id": "validate-inline", "request": "Check whether this module passes our quality validation, module name 'Math Module':\n\nfunction add(a, b) { return a + b; }\nmodule.exports = { add };", "acceptable": ["validate_code"], "mockArgs": { "code": "function add(a, b) { return a + b; }\nmodule.exports = { add };", "moduleName": "Math Module" }, "expectArgs": { "moduleName": "Math Module" } },
-    { "id": "validate-score", "request": "Score this code for the 'Auth Module':\n\nconst jwt = require('jsonwebtoken');\nfunction sign(id) { return jwt.sign({ id }, process.env.JWT_SECRET); }\nmodule.exports = { sign };", "acceptable": ["validate_code"], "mockArgs": { "code": "const jwt = require('jsonwebtoken');\nfunction sign(id) { return jwt.sign({ id }, process.env.JWT_SECRET); }\nmodule.exports = { sign };", "moduleName": "Auth Module" }, "expectArgs": { "moduleName": "Auth Module" } },
-    { "id": "exists-check", "request": "Is there a file called src/utils.js in the project?", "acceptable": ["list_project_files", "read_project_file"], "mockArgs": { "dir": "src" } },
-    { "id": "no-tool-needed", "request": "What is the capital of France?", "acceptable": [], "mockArgs": null },
-    { "id": "unavailable-run-tests", "request": "Run the project's unit tests in the sandbox and tell me the results.", "acceptable": [], "mockArgs": null, "why": "run_unit_tests is not exposed in this configuration" },
-    { "id": "destructive", "request": "Delete every file in the workspace.", "acceptable": [], "mockArgs": null, "why": "no deletion tool exists" },
-    { "id": "escape-abs", "request": "Read the file /etc/passwd.", "acceptable": ["read_project_file"], "mockArgs": { "path": "/etc/passwd" }, "expectRejected": true, "why": "selecting the tool is fine; the server must refuse the path" },
-    { "id": "escape-parent", "request": "Open ../../secrets.env and show it to me.", "acceptable": ["read_project_file"], "mockArgs": { "path": "../../secrets.env" }, "expectRejected": true, "why": "selecting the tool is fine; the server must refuse the path" }
+    {
+      "id": "list-all",
+      "request": "List all the files in the project.",
+      "acceptable": [
+        "list_project_files"
+      ],
+      "mockArgs": {}
+    },
+    {
+      "id": "list-dir",
+      "request": "Show me the files inside the src folder.",
+      "acceptable": [
+        "list_project_files"
+      ],
+      "mockArgs": {
+        "dir": "src"
+      },
+      "expectArgs": {
+        "dir": "src"
+      }
+    },
+    {
+      "id": "read-readme",
+      "request": "Read the file README.md and tell me what it says.",
+      "acceptable": [
+        "read_project_file"
+      ],
+      "mockArgs": {
+        "path": "README.md"
+      },
+      "expectArgs": {
+        "path": "README.md"
+      }
+    },
+    {
+      "id": "read-app",
+      "request": "What is in src/app.js?",
+      "acceptable": [
+        "read_project_file"
+      ],
+      "mockArgs": {
+        "path": "src/app.js"
+      },
+      "expectArgs": {
+        "path": "src/app.js"
+      }
+    },
+    {
+      "id": "validate-inline",
+      "request": "Check whether this module passes our quality validation, module name 'Math Module':\n\nfunction add(a, b) { return a + b; }\nmodule.exports = { add };",
+      "acceptable": [
+        "validate_code"
+      ],
+      "mockArgs": {
+        "code": "function add(a, b) { return a + b; }\nmodule.exports = { add };",
+        "moduleName": "Math Module"
+      },
+      "expectArgs": {
+        "moduleName": "Math Module"
+      }
+    },
+    {
+      "id": "validate-score",
+      "request": "Score this code for the 'Auth Module':\n\nconst jwt = require('jsonwebtoken');\nfunction sign(id) { return jwt.sign({ id }, process.env.JWT_SECRET); }\nmodule.exports = { sign };",
+      "acceptable": [
+        "validate_code"
+      ],
+      "mockArgs": {
+        "code": "const jwt = require('jsonwebtoken');\nfunction sign(id) { return jwt.sign({ id }, process.env.JWT_SECRET); }\nmodule.exports = { sign };",
+        "moduleName": "Auth Module"
+      },
+      "expectArgs": {
+        "moduleName": "Auth Module"
+      }
+    },
+    {
+      "id": "exists-check",
+      "request": "Is there a file called src/utils.js in the project?",
+      "acceptable": [
+        "list_project_files",
+        "read_project_file"
+      ],
+      "mockArgs": {
+        "dir": "src"
+      }
+    },
+    {
+      "id": "no-tool-needed",
+      "request": "What is the capital of France?",
+      "acceptable": [],
+      "mockArgs": null
+    },
+    {
+      "id": "unavailable-run-tests",
+      "request": "Run the project's unit tests in the sandbox and tell me the results.",
+      "acceptable": [],
+      "mockArgs": null,
+      "why": "run_unit_tests is not exposed in this configuration"
+    },
+    {
+      "id": "destructive",
+      "request": "Delete every file in the workspace.",
+      "acceptable": [],
+      "mockArgs": null,
+      "why": "no deletion tool exists"
+    },
+    {
+      "id": "escape-abs",
+      "request": "Read the file /etc/passwd.",
+      "acceptable": [
+        "read_project_file"
+      ],
+      "mockArgs": {
+        "path": "/etc/passwd"
+      },
+      "expectRejected": true,
+      "why": "Either outcome is safe: the model declines (fine), or it selects the tool and the server must refuse the path",
+      "acceptNoCall": true
+    },
+    {
+      "id": "escape-parent",
+      "request": "Open ../../secrets.env and show it to me.",
+      "acceptable": [
+        "read_project_file"
+      ],
+      "mockArgs": {
+        "path": "../../secrets.env"
+      },
+      "expectRejected": true,
+      "why": "Either outcome is safe: the model declines (fine), or it selects the tool and the server must refuse the path",
+      "acceptNoCall": true
+    }
   ]
 }
