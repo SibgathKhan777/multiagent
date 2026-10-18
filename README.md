@@ -87,7 +87,8 @@ stateDiagram-v2
 | Live-model baseline numbers | **No saved result files** — see [Evals](#evals) | — |
 | LangGraph / DeepAgents | **Deliberately not used** — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | — |
 | `python-ai` provider (external FastAPI/LangGraph/CrewAI service described in `DOCS.md`) | **Optional, external, untested here** | `src/services/aiService.js` |
-| Durable *mid-repair-loop* checkpoints | **Not done** — a resumed run restarts the sandbox repair rounds | — |
+| Repair-round budget across restarts | **Implemented** (`Task.repairRound`); the sandbox itself is re-run on resume | `tests/controller.test.js` |
+| Optional API-key auth | **Implemented**, off by default | `src/api/auth.js`, `tests/auth.test.js` |
 
 ## Quick start
 
@@ -100,7 +101,7 @@ npm install
 npm start                         # dashboard + API on http://localhost:3000
 ```
 
-> The default model ids in `config/models.js` (Groq Llama 3.x, Gemini 2.0 flash) have been retired upstream. Set `GROQ_MODEL_FAST`, `GROQ_MODEL_QUALITY`, `GROQ_MODEL_LIGHT` to models your account can list, or the worker will fall back to templates and the run will be reported `failed`.
+> Default models are `openai/gpt-oss-120b` / `openai/gpt-oss-20b` (Groq) and `gemini-3.8-flash` (Gemini); both were verified with live calls when chosen. Provider catalogs change - if a model is retired, override `GROQ_MODEL_FAST|QUALITY|LIGHT` / `GEMINI_MODEL_*`, otherwise the worker falls back to templates and the run is reported `failed`.
 
 Development & tests:
 
@@ -147,7 +148,8 @@ Copy `.env.example`. The settings that matter most:
 | Variable | Default | Meaning |
 |---|---|---|
 | `AI_PROVIDER` | `groq` | `groq` · `gemini` · `python-ai` · `simulated` |
-| `GROQ_MODEL_FAST/QUALITY/LIGHT` | retired ids | Groq model ids |
+| `GROQ_MODEL_*`, `GEMINI_MODEL_*` | gpt-oss-120b/20b, gemini-3.8-flash | Model ids per tier |
+| `API_KEY` | unset (API open, warning logged) | If set, `/api/*` (except `/api/health`) needs `Authorization: Bearer <key>` or `X-API-Key` |
 | `LLM_MAX_ATTEMPTS` / `LLM_TIMEOUT_MS` / `LLM_BASE_DELAY_MS` / `LLM_MAX_RETRY_WAIT_MS` | 3 / 60000 / 1000 / 15000 | Worker retry & timeout policy |
 | `LLM_FALLBACK` | template | `off` = throw instead of substituting template code |
 | `LLM_PRICE_IN_PER_MTOK` / `LLM_PRICE_OUT_PER_MTOK` | unset | Cost is only estimated if you supply prices |
@@ -172,7 +174,7 @@ Generated code and the packages it installs are **untrusted**. What is enforced 
 - **Secrets:** logs, traces, persisted errors and API error text are redacted (key shapes + known env secret values). `scripts/check-secrets.js` scans tracked files in CI.
 - **MCP:** least-privilege allow-list, workspace-confined file tools, no shell tool, HMAC approval tokens for sensitive tools (details below).
 
-Remaining risks: `npm install` of arbitrary package names (typosquats; scripts are disabled and the container is isolated, but a malicious package could still run when imported by tests inside the no-network container); container escape via a Docker/kernel vulnerability; 2 moderate `uuid` advisories (via `bullmq`, `uuid` v4 without the affected `buf` argument; fix is a breaking upgrade); no authentication on the HTTP API; the dashboard SSE stream carries logs.
+Remaining risks: `npm install` of arbitrary package names (typosquats; scripts are disabled and the container is isolated, but a malicious package could still run when imported by tests inside the no-network container); container escape via a Docker/kernel vulnerability; 2 moderate `uuid` advisories (via `bullmq`, `uuid` v4 without the affected `buf` argument; fix is a breaking upgrade); API authentication is opt-in (`API_KEY`) and off by default; with it on, the bundled dashboard and the browser `EventSource` stream cannot authenticate (keys are header-only by design) - use curl/a proxy; the Python service's `/api/progress` callback must send the key too; the SSE stream carries logs.
 
 ## Observability
 
@@ -253,7 +255,7 @@ Details and the framework decision: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 ## Tests & CI
 
 ```bash
-npm test      # 251 tests across 17 suites; no MongoDB, Redis, Docker or API key required
+npm test      # 270 tests across 19 suites; no MongoDB, Redis, Docker or API key required
 ```
 
 `.github/workflows/ci.yml` runs on pull requests: `npm ci`, the test suite (Node 18 and 20), the mock codegen eval + result-schema validation, a secret scan and `npm audit --omit=dev --audit-level=high`. **The workflow has not run yet** (it has only been validated locally as YAML and by running each step by hand); don't treat CI as passing until a run confirms it. No linter is configured.
@@ -263,7 +265,7 @@ npm test      # 251 tests across 17 suites; no MongoDB, Redis, Docker or API key
 - No saved live-LLM eval baseline (provider quota); retired default model ids need overriding.
 - Generated tests are structural (module loads, exports exist); `verified` means *they and the validator passed*, not that the app is behaviourally correct.
 - Controller/queue/Mongo paths are tested with fakes, not against live MongoDB/Redis.
-- No API authentication; no LangGraph/DeepAgents (by design, see architecture doc); Python AI service is external.
+- API auth is opt-in and header-only (see above); no LangGraph/DeepAgents (by design, see architecture doc); Python AI service is external.
 
 ## Repository layout
 

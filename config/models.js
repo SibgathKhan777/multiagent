@@ -13,18 +13,20 @@ module.exports = {
   groq: {
     apiKey: process.env.GROQ_API_KEY,
     models: {
-      fast:    process.env.GROQ_MODEL_FAST    || 'llama-3.3-70b-versatile',
-      quality: process.env.GROQ_MODEL_QUALITY || 'llama-3.3-70b-versatile',
-      light:   process.env.GROQ_MODEL_LIGHT   || 'llama-3.1-8b-instant',
+      // Verified available on a Groq free account (Llama 3.x ids were retired upstream)
+      fast:    process.env.GROQ_MODEL_FAST    || 'openai/gpt-oss-120b',
+      quality: process.env.GROQ_MODEL_QUALITY || 'openai/gpt-oss-120b',
+      light:   process.env.GROQ_MODEL_LIGHT   || 'openai/gpt-oss-20b',
     },
   },
 
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
     models: {
-      fast:    'gemini-2.0-flash',
-      quality: 'gemini-2.0-flash',
-      light:   'gemini-2.0-flash',
+      // gemini-2.0-flash was retired; this is the id the API itself recommended (verified)
+      fast:    process.env.GEMINI_MODEL_FAST    || 'gemini-3.8-flash',
+      quality: process.env.GEMINI_MODEL_QUALITY || 'gemini-3.8-flash',
+      light:   process.env.GEMINI_MODEL_LIGHT   || 'gemini-3.8-flash',
     },
   },
 
@@ -42,8 +44,8 @@ module.exports = {
 
   // Display names for logging
   displayNames: {
-    groq:      'Groq (Llama 3.3 70B)',
-    gemini:    'Google Gemini 2.0 Flash',
+    groq:      'Groq (gpt-oss)',
+    gemini:    'Google Gemini 3.8 Flash',
     simulated: 'Simulated (Templates)',
   },
 };

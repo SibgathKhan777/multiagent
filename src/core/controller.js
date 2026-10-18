@@ -378,7 +378,12 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
   const attempts = [];
   let current = result;
 
-  for (let round = 0; ; round++) {
+  // Repair rounds already spent before a restart count against the budget, so a crash
+  // loop cannot keep granting fresh repair attempts
+  const persisted = await Task.findOne({ taskId });
+  const startRound = persisted?.repairRound || 0;
+
+  for (let round = startRound; ; round++) {
     assertNotCancelled(taskId);
     let execution;
     try {
@@ -417,6 +422,8 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
       logger.warn('Execution failed but no module could be blamed — cannot repair', { taskId });
       return { result: current, execution, attempts };
     }
+
+    await Task.findOneAndUpdate({ taskId }, { repairRound: round + 1 });
 
     // Feed the real failures back to the coder for each blamed module
     for (const mod of targets) {

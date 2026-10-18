@@ -12,6 +12,7 @@ const taskSchema = new mongoose.Schema({
   finalOutput: { type: mongoose.Schema.Types.Mixed, default: null },
   error:       { type: String, default: null },
   runId:       { type: String, default: null },   // id of the current execution attempt (changes on resume)
+  repairRound: { type: Number, default: 0 },       // sandbox repair rounds already spent (survives restarts)
   resumeCount: { type: Number, default: 0 },       // how many times startup recovery re-launched this task
   metadata:    {
     totalModules:    { type: Number, default: 0 },

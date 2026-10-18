@@ -376,3 +376,30 @@ describe('controller: the database failing mid-run', () => {
     expect(summary.failed).toHaveLength(1);
   });
 });
+
+describe('controller: repair budget survives restarts', () => {
+  const failing = {
+    success: false, skipped: false, installSuccess: true,
+    tests: { total: 4, passed: 3, failed: 1, failures: [{ file: 'tests/database-module.test.js', test: 'x', message: 'boom' }] },
+    errors: ['1 test failure(s)'], logs: [],
+  };
+
+  test('each repair round is persisted on the task', async () => {
+    toolbox.execute.mockResolvedValueOnce(failing).mockResolvedValue(okExec);
+    const { taskId } = await controller.startPipeline('persist the round');
+    const t = await terminal(taskId);
+    expect(t.status).toBe('completed');
+    expect(t.repairRound).toBe(1);
+  });
+
+  test('a resumed task continues from its spent rounds instead of getting a fresh budget', async () => {
+    Task.docs.push({ taskId: 'R1', idea: 'crash loop', status: 'integrating', modules: ['m-cfg'], resumeCount: 0, repairRound: config.execution.maxRepairRounds, metadata: {}, createdAt: new Date(), error: null });
+    ModuleModel.docs.push({ taskId: 'R1', moduleId: 'm-cfg', name: 'Configuration Module', description: 'c', type: 'config', priority: 0, dependencies: [], status: 'completed', output: CODE('c'), validationPassed: true, usedFallback: false, qualityScore: 90 });
+    toolbox.execute.mockResolvedValue(failing);
+    await controller.recoverInterruptedPipelines();
+    const t = await terminal('R1');
+    expect(toolbox.execute).toHaveBeenCalledTimes(1); // budget already spent: one check, no more repairs
+    expect(queue.enqueueJob).not.toHaveBeenCalled();
+    expect(t.status).toBe('failed');
+  });
+});

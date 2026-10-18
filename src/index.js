@@ -48,7 +48,9 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 }));
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-app.use('/api', routes);
+const { createApiAuth } = require('./api/auth');
+if (!process.env.API_KEY) logger.warn('API_KEY is not set — the HTTP API is unauthenticated');
+app.use('/api', createApiAuth(), routes);
 
 // Root redirect to dashboard
 app.get('/', (req, res) => {
