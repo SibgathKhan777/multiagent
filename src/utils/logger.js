@@ -1,10 +1,21 @@
 const winston = require('winston');
 const path = require('path');
 const config = require('../../config/default');
+const { redact } = require('./redact');
+
+// Never let credentials reach log files, the console or the SSE stream
+const redactSecrets = winston.format((info) => {
+  if (typeof info.message === 'string') info.message = redact(info.message);
+  for (const key of Object.keys(info)) {
+    if (typeof info[key] === 'string' && key !== 'level' && key !== 'message') info[key] = redact(info[key]);
+  }
+  return info;
+});
 
 const logger = winston.createLogger({
   level: config.logging.level,
   format: winston.format.combine(
+    redactSecrets(),
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
     winston.format.json()
