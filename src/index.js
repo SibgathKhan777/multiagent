@@ -141,6 +141,7 @@ async function start() {
       server.close();
       await closeQueue();
       await tracer.shutdown(); // flush traces
+      await require('./mcp/toolbox').close();
       await mongoose.connection.close();
       logger.info('Shutdown complete');
       process.exit(0);

@@ -12,6 +12,8 @@ const logger = winston.createLogger({
   defaultMeta: { service: 'ai-factory' },
   transports: [
     new winston.transports.Console({
+      // MCP stdio servers must keep stdout clean for the protocol
+      stderrLevels: process.env.LOG_TO_STDERR === 'true' ? ['error', 'warn', 'info', 'debug', 'verbose', 'silly'] : [],
       format: winston.format.combine(
         winston.format.colorize(),
         winston.format.printf(({ timestamp, level, message, agent, taskId, moduleId, ...rest }) => {

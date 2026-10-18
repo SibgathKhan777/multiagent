@@ -2,10 +2,9 @@ const { v4: uuid } = require('uuid');
 const { STAGES, PipelineState } = require('./pipeline');
 const { decompose } = require('../agents/decomposer');
 const { generatePrompt } = require('../agents/promptGenerator');
-const { validate } = require('../agents/validator');
+const toolbox = require('../mcp/toolbox');
 const { generateFeedback, generateExecutionFeedback, mapFailuresToModules } = require('../agents/feedback');
 const { integrate } = require('../agents/integration');
-const { execute } = require('../agents/executor');
 const { enqueueJob } = require('../queue/queue');
 const Task = require('../models/Task');
 const ModuleModel = require('../models/Module');
@@ -212,7 +211,7 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
     let execution;
     try {
       execution = await tracer.span('sandbox.execute', { metadata: { round } }, async (h) => {
-        const ex = await execute({ files: current.files });
+        const ex = await toolbox.execute({ files: current.files });
         h.setOutput({ success: ex.success, skipped: ex.skipped, tests: ex.tests && { passed: ex.tests.passed, total: ex.tests.total }, errors: ex.errors });
         return ex;
       });
@@ -340,7 +339,7 @@ async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutp
   logger.info(`Validating module: "${mod.name}"`, { taskId, moduleId: mod.moduleId, iteration });
 
   const validation = await tracer.span('validate', { metadata: { iteration } }, async (h) => {
-    const v = await validate({ code: result.code, moduleName: mod.name, requirements: mod.description });
+    const v = await toolbox.validate({ code: result.code, moduleName: mod.name, requirements: mod.description });
     h.setOutput({ score: v.score, passed: v.passed, issues: v.issues.map((i) => i.message) });
     return v;
   });
