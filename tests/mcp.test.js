@@ -66,7 +66,7 @@ describe('MCP over real stdio (client ↔ server process)', () => {
 
   test('discovers only allowed tools, with schemas', () => {
     const names = client.listTools().map((t) => t.name).sort();
-    expect(names).toEqual(['list_project_files', 'read_project_file', 'validate_code']);
+    expect(names).toEqual(['get_task_status', 'get_validation_report', 'inspect_project_files', 'list_project_files', 'read_project_file', 'validate_code']);
     const v = client.listTools().find((t) => t.name === 'validate_code');
     expect(v.inputSchema.required).toEqual(expect.arrayContaining(['code', 'moduleName']));
     expect(v.annotations.readOnlyHint).toBe(true);
@@ -74,6 +74,7 @@ describe('MCP over real stdio (client ↔ server process)', () => {
 
   test('run_unit_tests is not discoverable or callable by default', async () => {
     expect(client.has('run_unit_tests')).toBe(false);
+    expect(client.has('run_project_tests')).toBe(false);
     await expect(client.callTool('run_unit_tests', { files: [{ path: 'a', content: '' }] })).rejects.toMatchObject({ kind: 'not-allowed' });
   });
 
@@ -134,5 +135,19 @@ describe('toolbox routing', () => {
     expect(toolbox.enabled()).toBe(false);
     const r = await toolbox.validate({ code: GOOD, moduleName: 'Math' });
     expect(r.passed).toBe(true);
+  });
+
+  test('MCP_ENABLED=true routes sandboxed tests through run_unit_tests with host approval (Docker unreachable → skipped)', async () => {
+    const saved = process.env.DOCKER_HOST;
+    process.env.DOCKER_HOST = 'unix:///nonexistent-docker.sock';
+    process.env.MCP_ENABLED = 'true';
+    const toolbox = require('../src/mcp/toolbox');
+    try {
+      const r = await toolbox.execute({ files: [{ path: 'package.json', content: '{}' }] });
+      expect(r).toMatchObject({ success: false, skipped: true });
+    } finally {
+      await toolbox.close();
+      if (saved === undefined) delete process.env.DOCKER_HOST; else process.env.DOCKER_HOST = saved;
+    }
   });
 });

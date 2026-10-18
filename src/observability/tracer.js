@@ -21,6 +21,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { redact } = require('../utils/redact');
 
 const als = new AsyncLocalStorage();
 let sinks = [];
@@ -40,6 +41,7 @@ function clip(value) {
   } catch {
     text = String(value);
   }
+  text = redact(text);
   if (text.length <= MAX_FIELD_CHARS) return typeof value === 'string' ? text : safeParse(text);
   return text.slice(0, MAX_FIELD_CHARS) + `… [truncated ${text.length - MAX_FIELD_CHARS} chars]`;
 }
@@ -85,7 +87,7 @@ async function run({ name, type, traceId, parentId, input, metadata, model }, fn
     record.endTime = new Date().toISOString();
     record.durationMs = Number(process.hrtime.bigint() - t0) / 1e6;
     record.status = status;
-    if (error) record.error = String(error.message || error).slice(0, 500);
+    if (error) record.error = redact(String(error.message || error)).slice(0, 500);
     for (const sink of sinks) {
       try { sink.onSpanEnd(record); } catch { /* sinks must never break the pipeline */ }
     }
@@ -165,21 +167,39 @@ function resetSinks() { sinks = []; }
 function initFromEnv(env = process.env) {
   resetSinks();
   if (env.TRACE_FILE !== 'off') {
-    addSink(jsonlSink(env.TRACE_FILE || path.join('logs', 'traces.jsonl')));
+    try {
+      addSink(jsonlSink(env.TRACE_FILE || path.join('logs', 'traces.jsonl')));
+    } catch (err) {
+      console.error(`Trace file disabled: ${redact(err.message)}`); // unwritable path must not stop the app
+    }
   }
   if (env.LANGFUSE_PUBLIC_KEY && env.LANGFUSE_SECRET_KEY) {
-    const { Langfuse } = require('langfuse');
-    addSink(langfuseSink(new Langfuse({
-      publicKey: env.LANGFUSE_PUBLIC_KEY,
-      secretKey: env.LANGFUSE_SECRET_KEY,
-      baseUrl: env.LANGFUSE_BASEURL || 'https://cloud.langfuse.com',
-    })));
+    try {
+      const { Langfuse } = require('langfuse'); // inside the try: a failed import must not stop the app
+      addSink(langfuseSink(new Langfuse({
+        publicKey: env.LANGFUSE_PUBLIC_KEY,
+        secretKey: env.LANGFUSE_SECRET_KEY,
+        baseUrl: env.LANGFUSE_BASEURL || 'https://cloud.langfuse.com',
+        // an unreachable Langfuse must never stall the app: short timeouts, few retries
+        requestTimeout: 5000,
+        fetchRetryCount: 1,
+        fetchRetryDelay: 500,
+      })));
+    } catch (err) {
+      // tracing is optional: run without it rather than refusing to start
+      console.error(`Langfuse disabled (init failed): ${redact(err.message)}`);
+    }
   }
   return sinks.map((s) => s.name);
 }
 
-async function shutdown() {
-  await Promise.all(sinks.map((s) => (s.shutdown ? s.shutdown().catch(() => {}) : null)));
+/** Flush sinks, but never hold up process exit for more than `timeoutMs` (offline backends). */
+async function shutdown({ timeoutMs = 5000 } = {}) {
+  const flush = Promise.all(sinks.map((s) => (s.shutdown ? Promise.resolve().then(() => s.shutdown()).catch(() => {}) : null)));
+  let timer;
+  const timeout = new Promise((resolve) => { timer = setTimeout(resolve, timeoutMs); });
+  await Promise.race([flush, timeout]);
+  clearTimeout(timer);
 }
 
 module.exports = {

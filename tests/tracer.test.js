@@ -81,3 +81,77 @@ describe('tracer', () => {
     expect(calls.find((c) => c[0] === 'trace')[1]).toMatchObject({ id: 'T', name: 'root' });
   });
 });
+
+describe('tracer: degradation and redaction', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  let mem;
+  beforeEach(() => { tracer.resetSinks(); mem = tracer.addSink(tracer.memorySink()); });
+  afterAll(() => tracer.resetSinks());
+
+  test('secrets in span inputs/outputs/errors are redacted', async () => {
+    const key = 'gsk_abcdefghijklmnopqrstuvwxyz0123456789';
+    await expect(tracer.trace('t', { input: { header: `Bearer ${'a'.repeat(30)}` } }, () =>
+      tracer.span('call', { input: `key=${key}` }, async (h) => { h.setOutput({ echoed: key }); throw new Error(`401 for ${key}`); }))).rejects.toThrow();
+    const dump = JSON.stringify(mem.spans);
+    expect(dump).not.toContain(key);
+    expect(dump).not.toMatch(/Bearer a{30}/);
+    expect(dump).toContain('[REDACTED]');
+  });
+
+  test('shutdown is bounded when a sink never flushes (offline backend)', async () => {
+    tracer.addSink({ onSpanEnd() {}, shutdown: () => new Promise(() => {}) });
+    const t0 = Date.now();
+    await tracer.shutdown({ timeoutMs: 100 });
+    expect(Date.now() - t0).toBeLessThan(1500);
+  });
+
+  test('a rejecting or throwing sink shutdown does not break shutdown', async () => {
+    tracer.addSink({ onSpanEnd() {}, shutdown: async () => { throw new Error('down'); } });
+    tracer.addSink({ onSpanEnd() {}, shutdown: () => { throw new Error('sync down'); } });
+    await expect(tracer.shutdown({ timeoutMs: 500 })).resolves.toBeUndefined();
+  });
+
+  test('initFromEnv: no sinks when disabled, no throw on unwritable trace path', () => {
+    expect(tracer.initFromEnv({ TRACE_FILE: 'off' })).toEqual([]);
+    const blocker = path.join(os.tmpdir(), `trace-blocker-${Date.now()}`);
+    fs.writeFileSync(blocker, 'a file where a directory is needed');
+    try {
+      expect(tracer.initFromEnv({ TRACE_FILE: path.join(blocker, 'sub', 'traces.jsonl') })).toEqual([]);
+    } finally { fs.rmSync(blocker, { force: true }); }
+  });
+
+  test('Langfuse configured but unreachable (real Node process): init ok, traces work, shutdown bounded', () => {
+    // run outside Jest: the Langfuse SDK needs native dynamic import
+    const script = `
+      const tracer = require('./src/observability/tracer');
+      (async () => {
+        const names = tracer.initFromEnv({ TRACE_FILE: 'off', LANGFUSE_PUBLIC_KEY: 'pk-lf-test', LANGFUSE_SECRET_KEY: 'sk-lf-test', LANGFUSE_BASEURL: 'http://127.0.0.1:1' });
+        const out = await tracer.trace('offline', { id: 'T-offline' }, () => tracer.span('child', {}, async () => 'ok'));
+        const t0 = Date.now();
+        await tracer.shutdown({ timeoutMs: 3000 });
+        console.log('RESULT' + JSON.stringify({ names, out, shutdownMs: Date.now() - t0 }));
+        process.exit(0);
+      })();`;
+    const r = require('child_process').spawnSync(process.execPath, ['-e', script], { cwd: path.join(__dirname, '..'), encoding: 'utf8', timeout: 30000 });
+    const line = (r.stdout || '').split('\n').find((l) => l.startsWith('RESULT'));
+    expect(line).toBeDefined();
+    const res = JSON.parse(line.slice(6));
+    expect(res.names).toEqual(['langfuse']);
+    expect(res.out).toBe('ok');
+    expect(res.shutdownMs).toBeLessThan(5000);
+  });
+
+  test('jsonl sink writes one parseable JSON line per span', async () => {
+    const file = path.join(os.tmpdir(), `traces-${Date.now()}.jsonl`);
+    tracer.resetSinks();
+    tracer.addSink(tracer.jsonlSink(file));
+    await tracer.trace('root', { id: 'J1' }, () => tracer.span('child', {}, async () => {}));
+    await new Promise((r) => setTimeout(r, 100)); // appendFile is async
+    const lines = fs.readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines.map((l) => l.name).sort()).toEqual(['child', 'root']);
+    expect(new Set(lines.map((l) => l.traceId))).toEqual(new Set(['J1']));
+    fs.rmSync(file, { force: true });
+  });
+});

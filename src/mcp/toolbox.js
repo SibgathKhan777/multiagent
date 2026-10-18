@@ -20,6 +20,10 @@ async function getClient() {
     mcp = new McpToolClient({
       allowedTools: ['validate_code', 'run_unit_tests'],
       workspace: process.env.MCP_WORKSPACE,
+      // The pipeline controller is the trusted host and the operator opted in with
+      // MCP_ENABLED=true, so it approves its own sandboxed test runs. An LLM-driven agent
+      // must NOT reuse this approver — give it one that asks a human or enforces a policy.
+      approver: async ({ tool }) => tool === 'run_unit_tests',
     });
   }
   if (!connecting) {
