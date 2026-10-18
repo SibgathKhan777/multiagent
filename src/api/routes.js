@@ -38,18 +38,48 @@ router.post('/pipeline', async (req, res) => {
     logger.info(`New pipeline requested: "${idea.substring(0, 80)}"`);
     const result = await controller.startPipeline(idea.trim());
 
-    res.status(201).json({
+    res.status(result.duplicate ? 200 : 201).json({
       success: true,
       data: {
         taskId: result.taskId,
         status: result.status,
-        message: 'Pipeline started. Poll GET /api/pipeline/:taskId for progress.',
+        duplicate: !!result.duplicate,
+        message: result.duplicate
+          ? 'An identical pipeline is already running; returning it instead of starting another.'
+          : 'Pipeline started. Poll GET /api/pipeline/:taskId for progress.',
       },
     });
   } catch (err) {
     logger.error('Failed to start pipeline', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+/**
+ * DELETE /api/pipeline/:taskId
+ * Cancel a running pipeline (only pipelines running in this server process).
+ */
+router.delete('/pipeline/:taskId', (req, res) => {
+  const cancelled = controller.cancelPipeline(req.params.taskId);
+  if (!cancelled) {
+    return res.status(404).json({ success: false, error: 'No running pipeline with that id in this process' });
+  }
+  res.status(202).json({ success: true, data: { taskId: req.params.taskId, status: 'cancelling' } });
+});
+
+/**
+ * POST /api/pipeline/:taskId/approve   { "approved": true | false }
+ * Release (or reject) a pipeline waiting at the execution-approval gate.
+ */
+router.post('/pipeline/:taskId/approve', (req, res) => {
+  const approved = req.body && req.body.approved;
+  if (typeof approved !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'Body must be {"approved": true|false}' });
+  }
+  if (!controller.resolveApproval(req.params.taskId, approved)) {
+    return res.status(404).json({ success: false, error: 'No pipeline in this process is waiting for approval with that id' });
+  }
+  res.status(202).json({ success: true, data: { taskId: req.params.taskId, approved } });
 });
 
 /**

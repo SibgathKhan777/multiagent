@@ -87,7 +87,9 @@ async function enqueueJob(jobData, onComplete) {
   if (!taskQueue) throw new Error('Queue not initialized. Call initQueue() first.');
 
   const job = await taskQueue.add('worker-task', jobData, {
-    jobId: `${jobData.moduleContext.moduleId}-iter-${jobData.moduleContext.iteration || 0}`,
+    // runId makes the id unique per execution attempt, so leftovers from before a
+    // restart can't make BullMQ silently drop the re-enqueued job as a duplicate
+    jobId: `${jobData.moduleContext.moduleId}-iter-${jobData.moduleContext.iteration || 0}-${jobData.moduleContext.runId || 'r0'}`,
   });
 
   if (onComplete) {
@@ -113,4 +115,9 @@ async function closeQueue() {
   logger.info('Queue system shut down');
 }
 
-module.exports = { initQueue, enqueueJob, closeQueue };
+/** Forget a pending completion callback (used when the caller gave up waiting). */
+function discardCallback(moduleId) {
+  completionCallbacks.delete(moduleId);
+}
+
+module.exports = { initQueue, enqueueJob, closeQueue, discardCallback };

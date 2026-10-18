@@ -103,6 +103,12 @@ async function start() {
 
     await memory.loadFromDB();
 
+    // Tasks left mid-flight by a previous process are resumed (or failed with an accurate reason)
+    const recovery = await require('./core/controller').recoverInterruptedPipelines();
+    if (recovery.resumed.length || recovery.failed.length) {
+      logger.warn(`Startup recovery: resumed ${recovery.resumed.length}, failed ${recovery.failed.length} interrupted pipeline(s)`);
+    }
+
     const modelsConfig = require('../config/models');
     const providerName = modelsConfig.displayNames[modelsConfig.provider] || modelsConfig.provider;
     logger.info(`AI Provider: ${providerName}`);

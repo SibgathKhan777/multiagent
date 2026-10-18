@@ -25,7 +25,12 @@ module.exports = {
 
   pipeline: {
     qualityThreshold: parseInt(process.env.QUALITY_THRESHOLD, 10) || 70,
-    maxIterations: parseInt(process.env.MAX_ITERATIONS, 10) || 3,
+    maxIterations: Math.max(1, parseInt(process.env.MAX_ITERATIONS, 10) || 3),
+    // true = pause before running generated code until a human approves (POST /api/pipeline/:id/approve)
+    requireExecutionApproval: process.env.REQUIRE_EXECUTION_APPROVAL === 'true',
+    approvalTimeoutMs: parseInt(process.env.APPROVAL_TIMEOUT_MS, 10) || 30 * 60 * 1000,
+    moduleTimeoutMs: parseInt(process.env.MODULE_TIMEOUT_MS, 10) || 5 * 60 * 1000,
+    dedupeWindowMs: parseInt(process.env.DEDUPE_WINDOW_MS, 10) || 10 * 60 * 1000,
   },
 
   // Sandboxed execution of generated projects (Docker). Generated code is untrusted.
@@ -41,6 +46,9 @@ module.exports = {
     maxFileBytes: 512 * 1024,
     // How many times failing tests are fed back to the coder before giving up
     maxRepairRounds: parseInt(process.env.EXEC_MAX_REPAIR_ROUNDS, 10) || 2,
+    startupTimeoutMs: parseInt(process.env.EXEC_STARTUP_TIMEOUT_MS, 10) || 10000,
+    // true = the generated app must also start and answer a health check for a run to count as successful
+    requireStartup: process.env.EXEC_REQUIRE_STARTUP === 'true',
     keepWorkdir: process.env.EXEC_KEEP_WORKDIR === 'true',
   },
 

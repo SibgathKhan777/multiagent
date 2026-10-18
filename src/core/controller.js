@@ -5,7 +5,7 @@ const { generatePrompt } = require('../agents/promptGenerator');
 const toolbox = require('../mcp/toolbox');
 const { generateFeedback, generateExecutionFeedback, mapFailuresToModules } = require('../agents/feedback');
 const { integrate } = require('../agents/integration');
-const { enqueueJob } = require('../queue/queue');
+const { enqueueJob, discardCallback } = require('../queue/queue');
 const Task = require('../models/Task');
 const ModuleModel = require('../models/Module');
 const Output = require('../models/Output');
@@ -15,142 +15,260 @@ const logger = require('../utils/logger').forAgent('Controller');
 const tracer = require('../observability/tracer');
 const { computeOutcome } = require('./outcome');
 const modelsConfig = require('../../config/models');
+const { redact } = require('../utils/redact');
 
-// In-memory store for pipeline state machines (keyed by taskId)
+// In-memory handles for pipelines (keyed by taskId). Durable state lives in MongoDB;
+// these exist only for status reporting and cancellation of runs owned by THIS process.
 const pipelines = new Map();
+const activeRuns = new Map(); // taskId → { runId, cancelled, approval? }
+
+const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'];
+
+class PipelineCancelledError extends Error {
+  constructor() { super('Pipeline cancelled'); this.name = 'PipelineCancelledError'; }
+}
+class ModuleTimeoutError extends Error {
+  constructor(name, ms) { super(`Module "${name}" timed out after ${ms}ms waiting for the worker`); this.name = 'ModuleTimeoutError'; }
+}
+
+function assertNotCancelled(taskId) {
+  if (activeRuns.get(taskId)?.cancelled) throw new PipelineCancelledError();
+}
 
 /**
  * Core Controller — Orchestrates the entire AI Factory pipeline.
  *
  * Flow:
- * 1. Receives idea → creates Task in DB
+ * 1. Receives idea → creates Task in DB (identical in-flight ideas are de-duplicated)
  * 2. Calls Decomposer → stores modules
- * 3. Calls Prompt Generator for each module
- * 4. Enqueues worker jobs via BullMQ
- * 5. On worker completion → calls Validator
- * 6. If validation fails → calls Feedback Agent → re-enqueues (max N iterations)
- * 7. If all modules pass → calls Integration Agent
- * 8. Stores final output in Task
+ * 3. For each module: prompt (aware of already-built siblings) → worker via BullMQ →
+ *    validator → feedback → retry (bounded by MAX_ITERATIONS)
+ * 4. Integration → sandboxed tests → repair loop (bounded by EXEC_MAX_REPAIR_ROUNDS)
+ * 5. Outcome verdict (verified / unverified / failed), persisted with the task
+ *
+ * Every module's state is persisted as it completes, so a run interrupted by a
+ * restart is resumed from its completed modules (recoverInterruptedPipelines).
  */
 
 /**
  * Start a new pipeline for the given idea.
  * @param {string} idea
- * @returns {Object} { taskId, status }
+ * @returns {Object} { taskId, status, duplicate? }
  */
 async function startPipeline(idea) {
+  // De-duplicate: a double-click or client retry must not start a second identical run
+  const since = new Date(Date.now() - config.pipeline.dedupeWindowMs);
+  const existing = await Task.findOne({ idea, status: { $nin: TERMINAL_STATUSES }, createdAt: { $gte: since } });
+  if (existing && activeRuns.has(existing.taskId)) {
+    logger.info('Duplicate request — returning the in-flight pipeline', { taskId: existing.taskId });
+    return { taskId: existing.taskId, status: 'already-running', duplicate: true };
+  }
+
   const taskId = uuid();
   logger.info(`Starting pipeline for: "${idea}"`, { taskId });
 
-  // Create pipeline state machine
-  const pipeline = new PipelineState(taskId);
-  pipelines.set(taskId, pipeline);
-
-  // Create task in DB
-  const task = await Task.create({
-    taskId,
-    idea,
-    status: 'pending',
-  });
-
-  // Run pipeline async (don't await — return immediately)
-  tracer.trace('pipeline', { id: taskId, input: { idea } }, async (h) => {
-    await runPipeline(taskId, idea, pipeline);
-    h.setOutput({ stage: pipeline.stage });
-  }).catch((err) => {
-    logger.error(`Pipeline failed: ${err.message}`, { taskId, error: err.stack });
-  });
-
+  await Task.create({ taskId, idea, status: 'pending' });
+  launch(taskId, idea, { resume: false });
   return { taskId, status: 'started' };
 }
 
 /**
- * Execute the full pipeline sequentially.
+ * Run a pipeline in the background under a trace. Never throws: a failure is
+ * persisted on the task so it cannot be left looking "running".
  */
-async function runPipeline(taskId, idea, pipeline) {
+function launch(taskId, idea, { resume }) {
+  const pipeline = new PipelineState(taskId);
+  pipelines.set(taskId, pipeline);
+  const runId = uuid().slice(0, 8);
+  activeRuns.set(taskId, { runId, cancelled: false });
+
+  return tracer.trace('pipeline', { id: taskId, input: { idea }, metadata: { runId, resume } }, async (h) => {
+    await runPipeline(taskId, idea, pipeline, { resume, runId });
+    h.setOutput({ stage: pipeline.stage });
+  }).catch((err) => {
+    logger.error(`Pipeline ended with error: ${err.message}`, { taskId });
+  }).finally(() => {
+    activeRuns.delete(taskId);
+  });
+}
+
+/**
+ * Request cancellation of a running pipeline (owned by this process).
+ * @returns {boolean} true if a running pipeline was signalled
+ */
+function cancelPipeline(taskId) {
+  const run = activeRuns.get(taskId);
+  if (!run) return false;
+  run.cancelled = true;
+  logger.info('Cancellation requested', { taskId });
+  return true;
+}
+
+/**
+ * Mark everything that was in flight as failed, persist the reason on the task.
+ */
+async function finalizeFailure(taskId, pipeline, err) {
+  const cancelled = err instanceof PipelineCancelledError;
+  const stage = cancelled ? STAGES.CANCELLED : STAGES.FAILED;
+  try { pipeline.transition(stage); } catch (_) { /* already terminal */ }
+  await ModuleModel.updateMany(
+    { taskId, status: { $nin: ['completed', 'failed'] } },
+    { status: 'failed' },
+  ).catch(() => {});
+  try {
+    await Task.findOneAndUpdate({ taskId }, {
+      status: cancelled ? 'cancelled' : 'failed',
+      error: redact(err.message).slice(0, 1000),
+    });
+  } catch (dbErr) {
+    // The database itself is failing: we cannot record the failure. Don't mask the original
+    // error; startup recovery will find this task still non-terminal and settle it.
+    logger.error(`Could not persist failure state: ${redact(dbErr.message)}`, { taskId });
+  }
+}
+
+/**
+ * Optional human gate before generated code is executed.
+ * Resolves true (approved) or false (rejected / timed out). Cancellation rejects.
+ */
+async function awaitExecutionApproval(taskId, pipeline) {
+  if (!config.pipeline.requireExecutionApproval) return true;
+  const run = activeRuns.get(taskId);
+  pipeline.transition(STAGES.AWAITING_APPROVAL);
+  await Task.findOneAndUpdate({ taskId }, { status: 'awaiting-approval' });
+  logger.info('Waiting for human approval before executing generated code', { taskId });
+
+  const decision = await new Promise((resolve) => {
+    let timer; let poll;
+    const done = (value) => { clearTimeout(timer); clearInterval(poll); resolve(value); }; // always release both timers
+    timer = setTimeout(() => done({ approved: false, reason: 'timed out' }), config.pipeline.approvalTimeoutMs);
+    poll = setInterval(() => { if (run?.cancelled) done({ cancelled: true }); }, 200);
+    run.approval = { resolve: (approved) => done({ approved, reason: approved ? 'approved' : 'rejected' }) };
+  });
+  if (run) run.approval = null;
+  if (decision.cancelled) throw new PipelineCancelledError();
+
+  pipeline.transition(STAGES.INTEGRATING);
+  await Task.findOneAndUpdate({ taskId }, { status: 'integrating' });
+  return decision.approved ? true : decision.reason;
+}
+
+/**
+ * Approve or reject a pipeline waiting at the execution gate.
+ * @returns {boolean} false if the task is not currently waiting in this process
+ */
+function resolveApproval(taskId, approved) {
+  const run = activeRuns.get(taskId);
+  if (!run || !run.approval) return false;
+  run.approval.resolve(!!approved);
+  return true;
+}
+
+/**
+ * Execute the full pipeline sequentially. With resume=true, continue a task
+ * whose modules were persisted before the process stopped.
+ */
+async function runPipeline(taskId, idea, pipeline, { resume = false, runId = 'r0' } = {}) {
   // Track completed module outputs for inter-module context passing
-  const completedOutputs = new Map(); // moduleName → { code, exports[], filePath }
+  const completedOutputs = new Map(); // moduleName → { code, exports[], filePath, ... }
 
   try {
-    // ─── Stage 1: Decompose ──────────────────────────────────────
-    pipeline.transition(STAGES.DECOMPOSING);
-    await Task.findOneAndUpdate({ taskId }, { status: 'decomposing' });
-    logger.info('Stage 1: Decomposing idea', { taskId });
+    await Task.findOneAndUpdate({ taskId }, { runId });
+    let moduleDocs;
 
-    const modules = await tracer.span('decompose', { input: { idea } }, async (h) => {
-      const mods = await decompose({ idea });
-      h.setOutput(mods.map((m) => m.name));
-      return mods;
-    });
+    if (resume) {
+      // ─── Resume: rebuild state from what was persisted ────────────
+      moduleDocs = await ModuleModel.find({ taskId }).sort({ priority: 1 });
+      if (!moduleDocs.length) {
+        throw new Error('Interrupted before decomposition finished — please resubmit the idea');
+      }
+      for (const doc of moduleDocs) {
+        if (doc.status === 'completed' && doc.output) {
+          completedOutputs.set(doc.name, {
+            code: doc.output,
+            exports: extractExportNames(doc.output),
+            filePath: getModuleFilePath(doc.type, doc.name),
+            type: doc.type,
+            name: doc.name,
+            validationPassed: !!doc.validationPassed,
+            usedFallback: !!doc.usedFallback,
+            score: doc.qualityScore,
+          });
+        } else if (doc.status !== 'pending') {
+          // Was mid-flight when the process stopped: rebuild it from its last prompt
+          await ModuleModel.findOneAndUpdate({ moduleId: doc.moduleId }, { status: 'pending' });
+          doc.status = 'pending';
+        }
+      }
+      pipeline.restore(STAGES.BUILDING);
+      await Task.findOneAndUpdate({ taskId }, { status: 'building' });
+      logger.info(`Resuming: ${completedOutputs.size}/${moduleDocs.length} modules already complete`, { taskId });
+    } else {
+      // ─── Stage 1: Decompose ──────────────────────────────────────
+      assertNotCancelled(taskId);
+      pipeline.transition(STAGES.DECOMPOSING);
+      await Task.findOneAndUpdate({ taskId }, { status: 'decomposing' });
+      logger.info('Stage 1: Decomposing idea', { taskId });
 
-    // Save modules to DB
-    const moduleDocs = [];
-    for (const mod of modules) {
-      const doc = await ModuleModel.create({
-        moduleId: mod.moduleId,
-        taskId,
-        name: mod.name,
-        description: mod.description,
-        type: mod.type,
-        dependencies: mod.dependencies,
-        priority: mod.priority,
-        status: 'pending',
+      const modules = await tracer.span('decompose', { input: { idea } }, async (h) => {
+        const mods = await decompose({ idea });
+        h.setOutput(mods.map((m) => m.name));
+        return mods;
       });
-      moduleDocs.push(doc);
-    }
 
-    await Task.findOneAndUpdate({ taskId }, {
-      modules: moduleDocs.map((m) => m.moduleId),
-      'metadata.totalModules': moduleDocs.length,
-    });
-
-    logger.info(`Decomposed into ${moduleDocs.length} modules`, { taskId });
-
-    // ─── Stage 2: Generate Prompts ───────────────────────────────
-    pipeline.transition(STAGES.PROMPTING);
-    await Task.findOneAndUpdate({ taskId }, { status: 'prompting' });
-    logger.info('Stage 2: Generating prompts', { taskId });
-
-    for (const mod of moduleDocs) {
-      // Build sibling context from already-completed modules
-      const siblingModules = [];
-      for (const [name, info] of completedOutputs) {
-        siblingModules.push({ name, exports: info.exports, filePath: info.filePath });
+      moduleDocs = [];
+      for (const mod of modules) {
+        const doc = await ModuleModel.create({
+          moduleId: mod.moduleId,
+          taskId,
+          name: mod.name,
+          description: mod.description,
+          type: mod.type,
+          dependencies: mod.dependencies,
+          priority: mod.priority,
+          status: 'pending',
+        });
+        moduleDocs.push(doc);
       }
 
-      const { prompt, model } = await tracer.span(`prompt:${mod.name}`, { metadata: { type: mod.type } }, async (h) => {
-        const out = await generatePrompt({
-          module: { name: mod.name, description: mod.description, type: mod.type, dependencies: mod.dependencies },
-          context: idea,
-          siblingModules,
-        });
-        h.setOutput({ model: out.model, promptChars: out.prompt.length });
-        return out;
+      await Task.findOneAndUpdate({ taskId }, {
+        modules: moduleDocs.map((m) => m.moduleId),
+        'metadata.totalModules': moduleDocs.length,
       });
+      logger.info(`Decomposed into ${moduleDocs.length} modules`, { taskId });
 
-      await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, {
-        prompt,
-        assignedModel: model,
-        status: 'prompting',
-      });
-
-      mod.prompt = prompt;
-      mod.assignedModel = model;
+      pipeline.transition(STAGES.BUILDING);
+      await Task.findOneAndUpdate({ taskId }, { status: 'building' });
     }
 
-    logger.info('All prompts generated', { taskId });
-
-    // ─── Stage 3: Build (dispatch to workers) ────────────────────
-    pipeline.transition(STAGES.BUILDING);
-    await Task.findOneAndUpdate({ taskId }, { status: 'building' });
-    logger.info('Stage 3: Dispatching to workers', { taskId });
-
-    // Process modules sequentially — each module gets context from previous ones
+    // ─── Stage 2–3: prompt + build + validate each module ──────────
+    // Modules run sequentially; each prompt is generated right before its module is
+    // built, so it can reference the real exports and file paths of finished siblings.
     for (const mod of moduleDocs) {
-      await processModule(taskId, mod, pipeline, 0, completedOutputs);
+      assertNotCancelled(taskId);
+      if (completedOutputs.has(mod.name)) continue;
+
+      if (!mod.prompt) {
+        const siblingModules = [...completedOutputs].map(([name, info]) => ({ name, exports: info.exports, filePath: info.filePath }));
+        const { prompt, model } = await tracer.span(`prompt:${mod.name}`, { metadata: { type: mod.type } }, async (h) => {
+          const out = await generatePrompt({
+            module: { name: mod.name, description: mod.description, type: mod.type, dependencies: mod.dependencies },
+            context: idea,
+            siblingModules,
+          });
+          h.setOutput({ model: out.model, promptChars: out.prompt.length });
+          return out;
+        });
+        await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { prompt, assignedModel: model, status: 'prompting' });
+        mod.prompt = prompt;
+        mod.assignedModel = model;
+      }
+
+      await processModule(taskId, mod, pipeline, 0, completedOutputs, runId);
     }
 
     // ─── Stage 3b: All modules validated ─────────────────────────
+    assertNotCancelled(taskId);
     pipeline.transition(STAGES.VALIDATING);
     await Task.findOneAndUpdate({ taskId }, { status: 'validating' });
     logger.info('Stage 3b: All modules built and validated', { taskId });
@@ -170,14 +288,21 @@ async function runPipeline(taskId, idea, pipeline) {
     });
 
     // ─── Stage 5: Sandboxed test execution + repair loop ─────────
-    logger.info('Stage 5: Running generated tests in sandbox', { taskId });
-    const final = await executeWithRepair({ taskId, result, moduleDocs, pipeline, completedOutputs });
-    result.files = final.result.files;
-    result.packageJson = final.result.packageJson;
-    result.execution = final.execution;
-    result.executionAttempts = final.attempts;
+    const gate = await awaitExecutionApproval(taskId, pipeline);
+    if (gate !== true) {
+      // Not approved: keep the artifact, but be explicit that nothing was verified
+      logger.info(`Execution not approved (${gate}) — finishing unverified`, { taskId });
+      result.execution = { success: false, skipped: true, errors: [`Execution ${gate} by operator`], logs: [], tests: { total: 0, passed: 0, failed: 0, failures: [] } };
+      result.executionAttempts = [];
+    } else {
+      logger.info('Stage 5: Running generated tests in sandbox', { taskId });
+      const final = await executeWithRepair({ taskId, result, moduleDocs, pipeline, completedOutputs, runId });
+      result.files = final.result.files;
+      result.packageJson = final.result.packageJson;
+      result.execution = final.execution;
+      result.executionAttempts = final.attempts;
+    }
 
-    // Save final output
     // Finishing the workflow is not the same as producing a working artifact
     const outcome = computeOutcome({
       modules: [...completedOutputs.values()],
@@ -189,7 +314,7 @@ async function runPipeline(taskId, idea, pipeline) {
 
     await Task.findOneAndUpdate({ taskId }, {
       status: failed ? 'failed' : 'completed',
-      error: failed ? outcome.reasons.join(' | ') : null,
+      error: failed ? redact(outcome.reasons.join(' | ')).slice(0, 1000) : null,
       finalOutput: result, // kept even on failure so the artifact can be inspected
     });
 
@@ -203,11 +328,43 @@ async function runPipeline(taskId, idea, pipeline) {
     });
 
   } catch (err) {
-    logger.error(`Pipeline FAILED: ${err.message}`, { taskId, error: err.stack });
-    try { pipeline.transition(STAGES.FAILED); } catch (_) { /* already terminal */ }
-    await Task.findOneAndUpdate({ taskId }, { status: 'failed', error: err.message });
+    const cancelled = err instanceof PipelineCancelledError;
+    logger.log(cancelled ? 'info' : 'error', `Pipeline ${cancelled ? 'CANCELLED' : 'FAILED'}: ${err.message}`, { taskId });
+    await finalizeFailure(taskId, pipeline, err);
     throw err;
   }
+}
+
+/**
+ * Startup recovery. Tasks left in a non-terminal state by a previous process are
+ * either resumed from their persisted modules (default; at most MAX_RESUMES times
+ * so a crash loop cannot spin forever) or marked failed with an accurate reason.
+ * @returns {Promise<{resumed: string[], failed: string[]}>}
+ */
+async function recoverInterruptedPipelines({ resume = process.env.PIPELINE_RESUME !== 'false', maxResumes = 2 } = {}) {
+  const stuck = await Task.find({ status: { $nin: TERMINAL_STATUSES } });
+  const summary = { resumed: [], failed: [] };
+
+  for (const task of stuck) {
+    if (activeRuns.has(task.taskId)) continue; // owned by this process
+    const hasModules = (task.modules || []).length > 0;
+
+    if (resume && hasModules && (task.resumeCount || 0) < maxResumes) {
+      await Task.findOneAndUpdate({ taskId: task.taskId }, { $inc: { resumeCount: 1 }, error: null });
+      logger.info(`Resuming interrupted pipeline (attempt ${(task.resumeCount || 0) + 1})`, { taskId: task.taskId });
+      launch(task.taskId, task.idea, { resume: true });
+      summary.resumed.push(task.taskId);
+    } else {
+      const reason = !hasModules
+        ? 'Interrupted by a restart before decomposition finished — please resubmit'
+        : (task.resumeCount || 0) >= maxResumes ? `Interrupted by repeated restarts (resumed ${task.resumeCount}×) — giving up`
+          : 'Interrupted by a restart (automatic resume disabled)';
+      await ModuleModel.updateMany({ taskId: task.taskId, status: { $nin: ['completed', 'failed'] } }, { status: 'failed' });
+      await Task.findOneAndUpdate({ taskId: task.taskId }, { status: 'failed', error: reason });
+      summary.failed.push(task.taskId);
+    }
+  }
+  return summary;
 }
 
 /**
@@ -216,12 +373,13 @@ async function runPipeline(taskId, idea, pipeline) {
  * within config.execution.maxRepairRounds. Never reports success unless the
  * tests actually passed.
  */
-async function executeWithRepair({ taskId, result, moduleDocs, pipeline, completedOutputs }) {
+async function executeWithRepair({ taskId, result, moduleDocs, pipeline, completedOutputs, runId }) {
   const maxRounds = config.execution.maxRepairRounds;
   const attempts = [];
   let current = result;
 
   for (let round = 0; ; round++) {
+    assertNotCancelled(taskId);
     let execution;
     try {
       execution = await tracer.span('sandbox.execute', { metadata: { round } }, async (h) => {
@@ -278,7 +436,7 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
       });
       mod.prompt = feedback.refinedPrompt;
       await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { prompt: feedback.refinedPrompt, status: 'feedback' });
-      await processModule(taskId, mod, pipeline, 0, completedOutputs);
+      await processModule(taskId, mod, pipeline, 0, completedOutputs, runId);
     }
 
     const completedModules = await ModuleModel.find({ taskId, status: 'completed' }).lean();
@@ -289,13 +447,34 @@ async function executeWithRepair({ taskId, result, moduleDocs, pipeline, complet
 /**
  * Process a single module through the build → validate → (feedback) loop.
  */
-function processModule(taskId, mod, pipeline, iteration, completedOutputs) {
+function processModule(taskId, mod, pipeline, iteration, completedOutputs, runId) {
   return tracer.span(`module:${mod.name}`, { metadata: { iteration } }, () =>
-    processModuleImpl(taskId, mod, pipeline, iteration, completedOutputs));
+    processModuleImpl(taskId, mod, pipeline, iteration, completedOutputs, runId));
 }
 
-async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutputs) {
+/**
+ * Enqueue a worker job and wait for it — but not forever. A lost job or a dead
+ * worker would otherwise leave the pipeline (and the task) running indefinitely.
+ */
+function dispatchJob(jobData, timeoutMs, moduleName) {
+  return new Promise((resolve, reject) => {
+    const moduleId = jobData.moduleContext.moduleId;
+    const timer = setTimeout(() => {
+      discardCallback(moduleId);
+      reject(new ModuleTimeoutError(moduleName, timeoutMs));
+    }, timeoutMs);
+    const settle = (fn, value) => { clearTimeout(timer); fn(value); };
+
+    Promise.resolve(enqueueJob(jobData, (err, workerResult) => {
+      if (err) settle(reject, err);
+      else settle(resolve, workerResult);
+    })).catch((err) => { discardCallback(moduleId); settle(reject, err); });
+  });
+}
+
+async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutputs, runId) {
   const maxIterations = config.pipeline.maxIterations;
+  assertNotCancelled(taskId);
 
   logger.info(`Building module: "${mod.name}" (iteration ${iteration})`, {
     taskId,
@@ -306,28 +485,22 @@ async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutp
   await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { status: 'queued', iteration });
 
   // Dispatch to worker via queue
-  const result = await new Promise((resolve, reject) => {
-    enqueueJob(
-      {
-        prompt: mod.prompt,
-        model: mod.assignedModel,
-        traceContext: tracer.currentContext(),
-        moduleContext: {
-          taskId,
-          moduleId: mod.moduleId,
-          name: mod.name,
-          type: mod.type,
-          description: mod.description,
-          dependencies: mod.dependencies,
-          iteration,
-        },
-      },
-      (err, workerResult) => {
-        if (err) reject(err);
-        else resolve(workerResult);
-      }
-    );
-  });
+  const result = await dispatchJob({
+    prompt: mod.prompt,
+    model: mod.assignedModel,
+    traceContext: tracer.currentContext(),
+    moduleContext: {
+      taskId,
+      runId,
+      moduleId: mod.moduleId,
+      name: mod.name,
+      type: mod.type,
+      description: mod.description,
+      dependencies: mod.dependencies,
+      iteration,
+    },
+  }, config.pipeline.moduleTimeoutMs, mod.name);
+  assertNotCancelled(taskId);
 
   // Save output
   const outputId = uuid();
@@ -435,7 +608,7 @@ async function processModuleImpl(taskId, mod, pipeline, iteration, completedOutp
     status: 'feedback',
   });
 
-  return processModule(taskId, mod, pipeline, iteration + 1, completedOutputs);
+  return processModule(taskId, mod, pipeline, iteration + 1, completedOutputs, runId);
 }
 
 /**
@@ -532,6 +705,11 @@ async function listPipelines() {
 
 module.exports = {
   startPipeline,
+  cancelPipeline,
+  resolveApproval,
+  recoverInterruptedPipelines,
+  PipelineCancelledError,
+  ModuleTimeoutError,
   getPipelineStatus,
   getPipelineOutput,
   listPipelines,

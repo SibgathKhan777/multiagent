@@ -19,20 +19,27 @@ const STAGES = {
   VALIDATING:    'validating',
   FEEDBACK_LOOP: 'feedback-loop',
   INTEGRATING:   'integrating',
+  AWAITING_APPROVAL: 'awaiting-approval',
   COMPLETED:     'completed',
   FAILED:        'failed',
+  CANCELLED:     'cancelled',
 };
 
+// Prompts are generated per module right before it is built (so they can reference
+// the real exports of already-built siblings), hence DECOMPOSING → BUILDING.
 const TRANSITIONS = {
-  [STAGES.CREATED]:       [STAGES.DECOMPOSING, STAGES.FAILED],
-  [STAGES.DECOMPOSING]:   [STAGES.PROMPTING, STAGES.FAILED],
-  [STAGES.PROMPTING]:     [STAGES.BUILDING, STAGES.FAILED],
-  [STAGES.BUILDING]:      [STAGES.VALIDATING, STAGES.FAILED],
-  [STAGES.VALIDATING]:    [STAGES.FEEDBACK_LOOP, STAGES.INTEGRATING, STAGES.FAILED],
-  [STAGES.FEEDBACK_LOOP]: [STAGES.BUILDING, STAGES.INTEGRATING, STAGES.FAILED],
-  [STAGES.INTEGRATING]:   [STAGES.COMPLETED, STAGES.FAILED],
+  [STAGES.CREATED]:       [STAGES.DECOMPOSING, STAGES.FAILED, STAGES.CANCELLED],
+  [STAGES.DECOMPOSING]:   [STAGES.PROMPTING, STAGES.BUILDING, STAGES.FAILED, STAGES.CANCELLED],
+  [STAGES.PROMPTING]:     [STAGES.BUILDING, STAGES.FAILED, STAGES.CANCELLED],
+  [STAGES.BUILDING]:      [STAGES.VALIDATING, STAGES.FAILED, STAGES.CANCELLED],
+  [STAGES.VALIDATING]:    [STAGES.FEEDBACK_LOOP, STAGES.INTEGRATING, STAGES.FAILED, STAGES.CANCELLED],
+  [STAGES.FEEDBACK_LOOP]: [STAGES.BUILDING, STAGES.INTEGRATING, STAGES.FAILED, STAGES.CANCELLED],
+  [STAGES.INTEGRATING]:   [STAGES.AWAITING_APPROVAL, STAGES.COMPLETED, STAGES.FAILED, STAGES.CANCELLED],
+  // optional human gate before generated code is executed (REQUIRE_EXECUTION_APPROVAL)
+  [STAGES.AWAITING_APPROVAL]: [STAGES.INTEGRATING, STAGES.COMPLETED, STAGES.FAILED, STAGES.CANCELLED],
   [STAGES.COMPLETED]:     [],
   [STAGES.FAILED]:        [],
+  [STAGES.CANCELLED]:     [],
 };
 
 class PipelineState {
@@ -59,8 +66,16 @@ class PipelineState {
     return this;
   }
 
+  /** Re-enter a persisted stage after a restart (no transition validation). */
+  restore(stage) {
+    if (!Object.values(STAGES).includes(stage)) throw new Error(`Unknown stage: ${stage}`);
+    this.currentStage = stage;
+    this.history.push({ stage, timestamp: new Date(), restored: true });
+    return this;
+  }
+
   get stage() { return this.currentStage; }
-  get isTerminal() { return [STAGES.COMPLETED, STAGES.FAILED].includes(this.currentStage); }
+  get isTerminal() { return [STAGES.COMPLETED, STAGES.FAILED, STAGES.CANCELLED].includes(this.currentStage); }
 }
 
 module.exports = { STAGES, PipelineState };

@@ -30,6 +30,46 @@ const tracer = require('../observability/tracer');
 
 const CONTAINER_WORKDIR = '/work';
 
+// ─── Startup / health probe (runs INSIDE the container) ───────────────────
+
+const STARTUP_PORT = 9999;
+const HEALTH_PATHS = ['/api/health', '/health', '/'];
+
+/**
+ * Node script executed in the container: spawn the generated app, poll health
+ * endpoints on loopback (works with --network none), report, then kill it.
+ */
+const STARTUP_PROBE = `
+const { spawn } = require('child_process');
+const http = require('http');
+const entry = process.argv[1], port = ${STARTUP_PORT}, paths = ${JSON.stringify(HEALTH_PATHS)}, deadline = Date.now() + parseInt(process.argv[2], 10);
+const child = spawn(process.execPath, [entry], { env: { ...process.env, PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'] });
+let out = '', exited = null;
+child.stdout.on('data', d => { out = (out + d).slice(-1500); });
+child.stderr.on('data', d => { out = (out + d).slice(-1500); });
+child.on('exit', (code, sig) => { exited = { code, sig }; });
+const get = (p) => new Promise(res => { const r = http.get({ host: '127.0.0.1', port, path: p, timeout: 1000 }, x => { x.resume(); res(x.statusCode); }); r.on('error', () => res(null)); r.on('timeout', () => { r.destroy(); res(null); }); });
+(async () => {
+  let result = null;
+  while (Date.now() < deadline && !result) {
+    if (exited) { result = { started: false, healthOk: false, error: 'process exited with code ' + exited.code + ' before becoming healthy' }; break; }
+    for (const p of paths) { const code = await get(p); if (code) { result = { started: true, healthOk: code >= 200 && code < 400, path: p, status: code }; break; } }
+    if (!result) await new Promise(r => setTimeout(r, 300));
+  }
+  if (!result) result = { started: false, healthOk: false, error: 'no HTTP response before timeout' };
+  result.output = out;
+  child.kill('SIGKILL');
+  process.stdout.write('__STARTUP_RESULT__' + JSON.stringify(result) + '\\n');
+  process.exit(0);
+})();
+`;
+
+function parseStartupResult(stdout) {
+  const line = (stdout || '').split('\n').reverse().find((l) => l.startsWith('__STARTUP_RESULT__'));
+  if (!line) return null;
+  try { return JSON.parse(line.slice('__STARTUP_RESULT__'.length)); } catch { return null; }
+}
+
 // ─── Process helper ────────────────────────────────────────────────────────
 
 /**
@@ -278,12 +318,30 @@ async function execute({ files, runner = runProcess } = {}) {
       if (parsed.failures.length > 0) result.errors.push(`${parsed.failures.length} test failure(s)`);
     }
 
+    // ─── 4. Startup + health probe (loopback only, network disabled) ───
+    const entry = ['src/index.js', 'index.js', 'server.js', 'app.js'].find((c) => files.some((f) => f.path === c));
+    result.startup = { attempted: false, started: false, healthOk: false };
+    if (entry && result.installSuccess && !test.timedOut) {
+      const probe = await runPhase('startup', {
+        network: false,
+        readOnlyProject: true,
+        timeoutMs: ex.startupTimeoutMs + 15000,
+        command: ['node', '-e', STARTUP_PROBE, entry, String(ex.startupTimeoutMs)],
+      });
+      const parsed = parseStartupResult(probe.stdout);
+      result.startup = parsed
+        ? { attempted: true, ...parsed, output: String(parsed.output || '').replace(ANSI, '').slice(-600) }
+        : { attempted: true, started: false, healthOk: false, error: probe.timedOut ? 'startup probe timed out' : 'no probe result' };
+      result.logs.push(result.startup.healthOk ? `✅ App started and answered ${result.startup.path}` : `⚠️ App did not become healthy: ${result.startup.error || 'unhealthy response'}`);
+    }
+
     result.success = result.installSuccess
       && test.code === 0
       && !test.timedOut
       && result.tests.ran
       && result.tests.total > 0
-      && result.tests.failed === 0;
+      && result.tests.failed === 0
+      && (!ex.requireStartup || result.startup.healthOk);
 
     result.logs.push(result.success
       ? `✅ ${result.tests.passed}/${result.tests.total} tests passed`
@@ -301,4 +359,4 @@ async function execute({ files, runner = runProcess } = {}) {
   return result;
 }
 
-module.exports = { execute, parseJestJson, buildDockerArgs, runProcess };
+module.exports = { execute, parseJestJson, parseStartupResult, buildDockerArgs, runProcess, dockerAvailable, STARTUP_PROBE };

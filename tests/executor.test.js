@@ -1,4 +1,6 @@
-const { execute, parseJestJson, buildDockerArgs } = require('../src/agents/executor');
+const fs = require('fs');
+const config = require('../config/default');
+const { execute, parseJestJson, parseStartupResult, buildDockerArgs } = require('../src/agents/executor');
 const { mapFailuresToModules, generateExecutionFeedback } = require('../src/agents/feedback');
 
 const jestJson = (over = {}) => JSON.stringify({
@@ -20,6 +22,7 @@ function fakeRunner(script) {
     calls.push({ cmd, args });
     const key = cmd === 'docker' && args[0] === 'info' ? 'info'
       : args.includes('install') ? 'install'
+      : args.some((a) => String(a).includes('__STARTUP_RESULT__')) ? 'startup'
       : args.some((a) => String(a).includes('jest')) ? 'test' : 'other';
     return { code: 0, signal: null, stdout: '', stderr: '', timedOut: false, truncated: false, durationMs: 1, ...(script[key] || {}) };
   };
@@ -145,5 +148,80 @@ describe('execution feedback', () => {
     expect(refinedPrompt).toContain('Auth exports');
     expect(refinedPrompt).toContain('boom at src/auth/auth.js:3');
     expect(refinedPrompt).toContain('const x = 1;');
+  });
+});
+
+const passOut = JSON.stringify({ numTotalTests: 2, numPassedTests: 2, numFailedTests: 0, numFailedTestSuites: 0,
+  testResults: [{ name: '/work/tests/a.test.js', status: 'passed', assertionResults: [{ status: 'passed' }, { status: 'passed' }] }] });
+const withEntry = [...files, { path: 'src/index.js', content: '//', module: 'Entry Point' }];
+const startup = (obj) => ({ stdout: '__STARTUP_RESULT__' + JSON.stringify(obj) + '\n' });
+
+describe('executor: cleanup', () => {
+  test('temp project dir is removed after success, failure and rejected input', async () => {
+    const dirs = [];
+    for (const [script, fl] of [
+      [{ test: { code: 0, stdout: passOut } }, files],
+      [{ install: { code: 1 } }, files],
+      [{}, [{ path: '../x', content: '' }, ...files]],
+    ]) {
+      const { runner } = fakeRunner(script);
+      const r = await execute({ files: fl, runner });
+      dirs.push(r.projectDir);
+    }
+    expect(dirs.every((d) => d && !fs.existsSync(d))).toBe(true);
+  });
+
+  test('nothing is created when Docker is unavailable', async () => {
+    const { runner } = fakeRunner({ info: { code: 1 } });
+    const r = await execute({ files, runner });
+    expect(r.projectDir).toBeNull();
+  });
+});
+
+describe('executor: startup and health check', () => {
+  test('healthy app is reported', async () => {
+    const { runner } = fakeRunner({ test: { code: 0, stdout: passOut }, startup: startup({ started: true, healthOk: true, path: '/api/health', status: 200 }) });
+    const r = await execute({ files: withEntry, runner });
+    expect(r.success).toBe(true);
+    expect(r.startup).toMatchObject({ attempted: true, started: true, healthOk: true });
+  });
+
+  test('crashing app is detected; informational by default, gating with requireStartup', async () => {
+    const crash = startup({ started: false, healthOk: false, error: 'process exited with code 1 before becoming healthy', output: 'Mongo connect failed' });
+    const { runner } = fakeRunner({ test: { code: 0, stdout: passOut }, startup: crash });
+    const lenient = await execute({ files: withEntry, runner });
+    expect(lenient.startup).toMatchObject({ attempted: true, started: false, healthOk: false });
+    expect(lenient.success).toBe(true);
+
+    config.execution.requireStartup = true;
+    try {
+      const strict = await execute({ files: withEntry, runner });
+      expect(strict.success).toBe(false);
+    } finally { config.execution.requireStartup = false; }
+  });
+
+  test('hung startup probe (timeout) is a failed startup, never a success signal', async () => {
+    config.execution.requireStartup = true;
+    try {
+      const { runner } = fakeRunner({ test: { code: 0, stdout: passOut }, startup: { code: null, timedOut: true, stdout: '' } });
+      const r = await execute({ files: withEntry, runner });
+      expect(r.startup).toMatchObject({ attempted: true, healthOk: false, error: 'startup probe timed out' });
+      expect(r.success).toBe(false);
+    } finally { config.execution.requireStartup = false; }
+  });
+
+  test('startup probe is skipped when install failed or there is no entry file', async () => {
+    const a = await execute({ files: withEntry, runner: fakeRunner({ install: { code: 1 } }).runner });
+    expect(a.startup).toBeUndefined();
+    const { runner, calls } = fakeRunner({ test: { code: 0, stdout: passOut } });
+    const b = await execute({ files, runner });
+    expect(b.startup.attempted).toBe(false);
+    expect(calls.some((c) => c.args.some((x) => String(x).includes('__STARTUP_RESULT__')))).toBe(false);
+  });
+
+  test('parseStartupResult tolerates noise and garbage', () => {
+    expect(parseStartupResult('noise\n__STARTUP_RESULT__{"started":true}\n')).toEqual({ started: true });
+    expect(parseStartupResult('__STARTUP_RESULT__{oops')).toBeNull();
+    expect(parseStartupResult('')).toBeNull();
   });
 });
