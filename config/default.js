@@ -28,6 +28,22 @@ module.exports = {
     maxIterations: parseInt(process.env.MAX_ITERATIONS, 10) || 3,
   },
 
+  // Sandboxed execution of generated projects (Docker). Generated code is untrusted.
+  execution: {
+    image: process.env.EXEC_IMAGE || 'node:20-alpine',
+    memory: process.env.EXEC_MEMORY || '512m',
+    cpus: parseFloat(process.env.EXEC_CPUS) || 1,
+    pidsLimit: parseInt(process.env.EXEC_PIDS_LIMIT, 10) || 256,
+    installTimeoutMs: parseInt(process.env.EXEC_INSTALL_TIMEOUT_MS, 10) || 120000,
+    testTimeoutMs: parseInt(process.env.EXEC_TEST_TIMEOUT_MS, 10) || 90000,
+    maxOutputBytes: 200 * 1024,
+    maxFiles: 200,
+    maxFileBytes: 512 * 1024,
+    // How many times failing tests are fed back to the coder before giving up
+    maxRepairRounds: parseInt(process.env.EXEC_MAX_REPAIR_ROUNDS, 10) || 2,
+    keepWorkdir: process.env.EXEC_KEEP_WORKDIR === 'true',
+  },
+
   logging: {
     level: process.env.LOG_LEVEL || 'info',
     dir: 'logs',

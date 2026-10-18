@@ -3,7 +3,7 @@ const { STAGES, PipelineState } = require('./pipeline');
 const { decompose } = require('../agents/decomposer');
 const { generatePrompt } = require('../agents/promptGenerator');
 const { validate } = require('../agents/validator');
-const { generateFeedback } = require('../agents/feedback');
+const { generateFeedback, generateExecutionFeedback, mapFailuresToModules } = require('../agents/feedback');
 const { integrate } = require('../agents/integration');
 const { execute } = require('../agents/executor');
 const { enqueueJob } = require('../queue/queue');
@@ -152,16 +152,13 @@ async function runPipeline(taskId, idea, pipeline) {
 
     const result = await integrate({ modules: completedModules });
 
-    // ─── Stage 5: Live Execution ─────────────────────────────────
-    logger.info('Stage 5: Live project execution', { taskId });
-    try {
-      const execResult = await execute({ files: result.files, projectName: result.packageJson?.name });
-      result.execution = execResult;
-      logger.info(`Execution result: files=${execResult.filesWritten}, install=${execResult.installSuccess}, started=${execResult.started}`, { taskId });
-    } catch (execErr) {
-      logger.warn(`Live execution skipped: ${execErr.message}`, { taskId });
-      result.execution = { success: false, errors: [execErr.message], logs: ['⚠️ Execution skipped'] };
-    }
+    // ─── Stage 5: Sandboxed test execution + repair loop ─────────
+    logger.info('Stage 5: Running generated tests in sandbox', { taskId });
+    const final = await executeWithRepair({ taskId, result, moduleDocs, pipeline, completedOutputs });
+    result.files = final.result.files;
+    result.packageJson = final.result.packageJson;
+    result.execution = final.execution;
+    result.executionAttempts = final.attempts;
 
     // Save final output
     await Task.findOneAndUpdate({ taskId }, {
@@ -181,6 +178,78 @@ async function runPipeline(taskId, idea, pipeline) {
     try { pipeline.transition(STAGES.FAILED); } catch (_) { /* already terminal */ }
     await Task.findOneAndUpdate({ taskId }, { status: 'failed', error: err.message });
     throw err;
+  }
+}
+
+/**
+ * Run the generated project's tests in the sandbox. On failure, blame the
+ * owning modules, feed the real failures back to the coder, rebuild and retry
+ * within config.execution.maxRepairRounds. Never reports success unless the
+ * tests actually passed.
+ */
+async function executeWithRepair({ taskId, result, moduleDocs, pipeline, completedOutputs }) {
+  const maxRounds = config.execution.maxRepairRounds;
+  const attempts = [];
+  let current = result;
+
+  for (let round = 0; ; round++) {
+    let execution;
+    try {
+      execution = await execute({ files: current.files });
+    } catch (err) {
+      execution = { success: false, skipped: false, errors: [err.message], logs: [], tests: { total: 0, passed: 0, failed: 0, failures: [] } };
+    }
+
+    attempts.push({
+      round,
+      success: execution.success,
+      skipped: !!execution.skipped,
+      installSuccess: !!execution.installSuccess,
+      passed: execution.tests?.passed ?? 0,
+      total: execution.tests?.total ?? 0,
+      failed: execution.tests?.failed ?? 0,
+      errors: execution.errors,
+    });
+    logger.info(`Execution round ${round}: success=${execution.success}, tests=${execution.tests?.passed}/${execution.tests?.total}`, { taskId });
+
+    if (execution.success || execution.skipped) return { result: current, execution, attempts };
+
+    const failures = execution.tests?.failures || [];
+    const blame = mapFailuresToModules(failures, current.files);
+    const targets = moduleDocs.filter((m) => blame.has(m.name));
+
+    if (round >= maxRounds) {
+      logger.warn(`Execution still failing after ${maxRounds} repair round(s) — reporting failure`, { taskId });
+      return { result: current, execution, attempts };
+    }
+    if (targets.length === 0) {
+      logger.warn('Execution failed but no module could be blamed — cannot repair', { taskId });
+      return { result: current, execution, attempts };
+    }
+
+    // Feed the real failures back to the coder for each blamed module
+    for (const mod of targets) {
+      const feedback = await generateExecutionFeedback({
+        failures: blame.get(mod.name),
+        originalPrompt: mod.prompt,
+        code: completedOutputs.get(mod.name)?.code,
+        iteration: round,
+      });
+      await FeedbackLog.create({
+        feedbackId: uuid(),
+        moduleId: mod.moduleId,
+        taskId,
+        iteration: round,
+        issues: blame.get(mod.name).map((f) => ({ type: 'error', message: `Test failed: ${f.test}`, severity: 8 })),
+        refinedPrompt: feedback.refinedPrompt,
+      });
+      mod.prompt = feedback.refinedPrompt;
+      await ModuleModel.findOneAndUpdate({ moduleId: mod.moduleId }, { prompt: feedback.refinedPrompt, status: 'feedback' });
+      await processModule(taskId, mod, pipeline, 0, completedOutputs);
+    }
+
+    const completedModules = await ModuleModel.find({ taskId, status: 'completed' }).lean();
+    current = await integrate({ modules: completedModules });
   }
 }
 

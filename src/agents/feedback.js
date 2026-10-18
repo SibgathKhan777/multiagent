@@ -87,4 +87,71 @@ Generate a COMPLETE, corrected version from scratch.
   return { refinedPrompt, suggestions };
 }
 
-module.exports = { generateFeedback };
+/**
+ * Blame failing tests on the modules that own the code.
+ * A failure is attributed to (a) the module whose test file failed, and
+ * (b) any source file whose path appears in the failure message / stack trace.
+ *
+ * @param {Array<{file,test,message}>} failures  from the executor
+ * @param {Array<{path,module}>} files           integrated project files
+ * @returns {Map<string, Array>} moduleName → failures
+ */
+function mapFailuresToModules(failures, files) {
+  const byPath = new Map(files.map((f) => [f.path, f]));
+  const sourceFiles = files.filter((f) => !f.path.startsWith('tests/') && f.module && !NON_MODULE_OWNERS.has(f.module));
+  const blame = new Map();
+
+  const add = (moduleName, failure) => {
+    if (!moduleName || NON_MODULE_OWNERS.has(moduleName)) return;
+    if (!blame.has(moduleName)) blame.set(moduleName, []);
+    const list = blame.get(moduleName);
+    if (!list.includes(failure)) list.push(failure);
+  };
+
+  for (const failure of failures) {
+    const owner = byPath.get(failure.file);
+    if (owner) add(owner.module.replace(/^Test: /, ''), failure);
+    for (const src of sourceFiles) {
+      if (failure.message && failure.message.includes(src.path)) add(src.module, failure);
+    }
+  }
+  return blame;
+}
+
+const NON_MODULE_OWNERS = new Set(['Entry Point', 'Package', 'Documentation', 'Environment']);
+
+/**
+ * Turn real test failures into a refined coder prompt.
+ * Unlike generateFeedback (static validator issues) this carries the actual
+ * failing test names, error messages / stack excerpts and the previous code.
+ */
+async function generateExecutionFeedback({ failures, originalPrompt, code, iteration }) {
+  const shown = failures.slice(0, 6);
+  const failureText = shown.map((f, i) =>
+    `${i + 1}. ${f.test}  (${f.file})\n${String(f.message || '').split('\n').slice(0, 12).join('\n')}`
+  ).join('\n\n');
+
+  const refinedPrompt = `
+${originalPrompt}
+
+---
+
+## TEST FAILURES (execution round ${iteration + 1})
+
+Your previous code was installed and its tests were executed in a sandbox.
+${failures.length} test(s) FAILED. Fix the code so they pass. Do not change the
+module's public exports.
+
+${failureText}
+${failures.length > shown.length ? `\n...and ${failures.length - shown.length} more failure(s).\n` : ''}
+## Previous Code (fix this, return the COMPLETE corrected file)
+
+\`\`\`javascript
+${String(code || '').slice(0, 6000)}
+\`\`\`
+`.trim();
+
+  return { refinedPrompt, failureCount: failures.length };
+}
+
+module.exports = { generateFeedback, generateExecutionFeedback, mapFailuresToModules };
